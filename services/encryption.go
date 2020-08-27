@@ -9,7 +9,7 @@ import (
 	"golang.org/x/crypto/chacha20poly1305"
 )
 
-// EncryptionService - Interface for encryption and descryption
+// EncryptionService - Interface for encryption and decryption
 type EncryptionService interface {
 	Encrypt(dst, msg []byte) ([]byte, error)
 	EncryptString(msg string) ([]byte, error)

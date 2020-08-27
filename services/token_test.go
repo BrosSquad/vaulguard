@@ -9,38 +9,48 @@ import (
 	"gorm.io/gorm"
 )
 
-var DbConn *gorm.DB
-var app models.Application
+func teardownToken() {
+	_ = os.Remove("test.db")
+}
 
-func setupToken(t *testing.T) {
+func setupToken(DbConn **gorm.DB, app *models.Application, t *testing.T) {
 	var err error
-	DbConn, err = gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
+	*DbConn, err = gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
 
 	if err != nil {
 		teardownToken()
 		t.Error(err)
 	}
 
-	if err := DbConn.AutoMigrate(&models.Application{}, &models.Token{}); err != nil {
+	if err := (*DbConn).AutoMigrate(&models.Application{}, &models.Token{}); err != nil {
 		teardownToken()
 		t.Error(err)
 	}
 
-	app = models.Application{
+	*app = models.Application{
 		Name: "Test App",
 	}
-	DbConn.Create(&app)
+	(*DbConn).Create(app)
 }
 
-func teardownToken() {
-	_ = os.Remove("test.db")
-}
-
-func TestTokenGenerate(t *testing.T) {
-	setupToken(t)
+func TestToken(t *testing.T) {
+	var DbConn *gorm.DB
+	var app models.Application
+	setupToken(&DbConn, &app, t)
 	defer teardownToken()
 
-	s := NewTokenService(DbConn)
+	t.Run("Generate", func(t *testing.T) {
+		s := NewTokenService(DbConn)
+		_ = s.Generate(app.ID)
+	})
 
-	_ = s.Generate(app.ID)
+	t.Run("Verify", func(t *testing.T) {
+		s := NewTokenService(DbConn)
+
+		token := s.Generate(app.ID)
+
+		if !s.Verify(token) {
+			t.Error("Token is not valid")
+		}
+	})
 }
