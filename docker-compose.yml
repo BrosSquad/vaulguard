@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  mongo:
+    image: mongo:4.4.0-bionic
+    restart: unless-stopped
+  postgres:
+
+volumes:
+
+networks:
