@@ -5,13 +5,29 @@ import (
 	"errors"
 	"os"
 	"strconv"
+	"strings"
 )
 
 type Config struct {
 	ApplicationKey []byte
 	Database       string
+	DatabaseDSN    string
 	Mongo          string
 	Port           uint16
+}
+
+func checkDatabaseProvider(provider string) error {
+	providers := []string {"postgres", "mysql", "sqlite"}
+
+	provider = strings.ToLower(provider)
+
+	for _, p := range providers {
+		if p == provider {
+			return nil
+		}
+	}
+
+	return errors.New("Database provider is not supported")
 }
 
 func NewConfig() (Config, error) {
@@ -31,12 +47,22 @@ func NewConfig() (Config, error) {
 
 	config.Mongo = mongo
 
-	database := os.Getenv("DATABASE_DSN")
+	database := os.Getenv("DATABASE_PROVIDER")
 	if database == "" {
-		return config, errors.New("Datanase DSN is not set")
+		return config, errors.New("Database provider is not set")
 	}
 
+	if err := checkDatabaseProvider(database); err != nil {
+		return config, err
+	}
 	config.Database = database
+
+	databaseDsn := os.Getenv("DATABASE_DSN")
+	if databaseDsn == "" {
+		return config, errors.New("Database DSN is not set")
+	}
+
+	config.DatabaseDSN = databaseDsn
 
 	appKey := os.Getenv("APP_KEY")
 

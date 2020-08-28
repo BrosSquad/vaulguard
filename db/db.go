@@ -35,9 +35,35 @@ func ConnectToMongo(ctx context.Context, url string) (_ *mongo.Client, err error
 	return MongoClient, nil
 }
 
+// ConnectToDatabaseProvider - Connects to different database providers supported by the application
+// Supported providers:
+// 1. PostgreSQL
+// 2. MySQL
+// 3. SQLite
+func ConnectToDatabaseProvider(provider string, dsn string) (_ *gorm.DB, err error) {
+	switch provider {
+	case "postgres":
+		return connectToPostgreSQL(dsn)
+	case "mysql":
+		return connectToMySQL(dsn)
+	case "sqlite":
+		return connectToSQLite(dsn)
+	}
+
+	return nil, nil
+}
+
 // ConnectToPostgres - Connects to the running postgres database instance
-func ConnectToPostgres(dsn string) (_ *gorm.DB, err error) {
+func connectToPostgreSQL(dsn string) (_ *gorm.DB, err error) {
 	config := &gorm.Config{}
 	DbConn, err = gorm.Open(postgres.New(postgres.Config{}), config)
 	return DbConn, err
+}
+
+func connectToMySQL(dns string) (_ *gorm.DB, err error) {
+	return DbConn, nil
+}
+
+func connectToSQLite(dns string) (_ *gorm.DB, err error) {
+	return DbConn, nil
 }

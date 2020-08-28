@@ -34,7 +34,7 @@ func main() {
 		}
 	}()
 
-	_, err = db.ConnectToPostgres(cfg.Database)
+	_, err = db.ConnectToDatabaseProvider(cfg.Database, cfg.DatabaseDSN)
 
 	if err != nil {
 		log.Fatalf("Error while connection to PostgreSQL: %v", err)

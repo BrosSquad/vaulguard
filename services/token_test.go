@@ -1,51 +1,40 @@
 package services
 
 import (
+	"gorm.io/driver/sqlite"
 	"os"
 	"testing"
 
 	"github.com/BrosSquad/vaulguard/models"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
-func teardownToken() {
-	_ = os.Remove("test.db")
-}
-
-func setupToken(DbConn **gorm.DB, app *models.Application, t *testing.T) {
-	var err error
-	*DbConn, err = gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
+func TestToken(t *testing.T) {
+	conn, err := gorm.Open(sqlite.Open("token_test.db"), &gorm.Config{})
+	defer os.Remove("token_test.db")
 
 	if err != nil {
-		teardownToken()
 		t.Error(err)
+		return
 	}
 
-	if err := (*DbConn).AutoMigrate(&models.Application{}, &models.Token{}); err != nil {
-		teardownToken()
+	if err := conn.AutoMigrate(&models.Application{}, &models.Token{}); err != nil {
 		t.Error(err)
+		return
 	}
 
-	*app = models.Application{
+	app := models.Application{
 		Name: "Test App",
 	}
-	(*DbConn).Create(app)
-}
-
-func TestToken(t *testing.T) {
-	var DbConn *gorm.DB
-	var app models.Application
-	setupToken(&DbConn, &app, t)
-	defer teardownToken()
+	conn.Create(&app)
 
 	t.Run("Generate", func(t *testing.T) {
-		s := NewTokenService(DbConn)
+		s := NewTokenService(conn)
 		_ = s.Generate(app.ID)
 	})
 
 	t.Run("Verify", func(t *testing.T) {
-		s := NewTokenService(DbConn)
+		s := NewTokenService(conn)
 
 		token := s.Generate(app.ID)
 
