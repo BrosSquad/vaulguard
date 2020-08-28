@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func setupEncryption(t *testing.T) EncryptionService {
+func TestEncryptionService(t *testing.T) {
 	key := make([]byte, 32)
 
 	_, err := rand.Read(key)
@@ -20,50 +20,43 @@ func setupEncryption(t *testing.T) EncryptionService {
 		t.Errorf("Cannot create encryption service: %v", err)
 	}
 
-	return service
-}
+	t.Run("Encryption", func(t *testing.T) {
+		encryptedBytes, err := service.EncryptString("Hello World")
 
-func TestEncryptionDecryption(t *testing.T) {
-	service := setupEncryption(t)
+		if err != nil {
+			t.Errorf("Cannot encrypt text: %v", err)
+		}
 
-	encryptedBytes, err := service.EncryptString("Hello World")
+		str, err := service.Decrypt(encryptedBytes)
 
-	if err != nil {
-		t.Errorf("Cannot encrypt text: %v", err)
-	}
+		if err != nil {
+			t.Errorf("Decryption failed: %v", err)
+		}
 
-	str, err := service.Decrypt(encryptedBytes)
+		if str != "Hello World" {
+			t.Errorf("Starting string is not equal to decrypted string")
+		}
+	})
 
-	if err != nil {
-		t.Errorf("Decryption failed: %v", err)
-	}
+	t.Run("SmallMessageInDecryption", func(t *testing.T) {
+		dst := make([]byte, 24, 25)
 
-	if str != "Hello World" {
-		t.Errorf("Starting string is not equal to decrypted string")
-	}
-}
+		_, err := service.Encrypt(dst, []byte("Hello World"))
 
-func TestEncryptionWithSmallDestination(t *testing.T) {
-	service := setupEncryption(t)
+		if err == nil {
+			t.Error(err)
+		}
+	})
 
-	dst := make([]byte, 24, 25)
+	t.Run("DecryptionWithSmallMessageSize", func(t *testing.T) {
+		data := make([]byte, 12)
 
-	_, err := service.Encrypt(dst, []byte("Hello World"))
+		_, _ = rand.Read(data)
 
-	if err == nil {
-		t.Error(err)
-	}
-}
-func TestDecryptionnWithSmallMessageSize(t *testing.T) {
-	service := setupEncryption(t)
+		_, err := service.Decrypt(data)
 
-	data := make([]byte, 12)
-
-	rand.Read(data)
-
-	_, err := service.Decrypt(data)
-
-	if err == nil {
-		t.Error(err)
-	}
+		if err == nil {
+			t.Error(err)
+		}
+	})
 }
