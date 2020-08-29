@@ -5,6 +5,7 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"fmt"
+
 	"github.com/BrosSquad/vaulguard/models"
 	"gorm.io/gorm"
 	"lukechampine.com/blake3"
@@ -12,7 +13,7 @@ import (
 
 type TokenService interface {
 	Generate(uint) string
-	Verify(string) bool
+	Verify(string) (models.Application, bool)
 }
 
 type tokenService struct {
@@ -45,7 +46,7 @@ func (s tokenService) Generate(applicationId uint) string {
 	return fmt.Sprintf("VaulGuard-%d-%s", token.ID, base64.RawURLEncoding.EncodeToString(tokenBytes))
 }
 
-func (s tokenService) Verify(token string) bool {
+func (s tokenService) Verify(token string) (models.Application, bool) {
 	var id uint
 	var value string
 	tokenModel := models.Token{}
@@ -53,22 +54,21 @@ func (s tokenService) Verify(token string) bool {
 	_, err := fmt.Sscanf(token, "VaulGuard-%d-%s", &id, &value)
 
 	if err != nil {
-		return false
+		return models.Application{}, false
 	}
 
-	tx := s.db.First(&tokenModel, id)
+	tx := s.db.Joins("Application").First(&tokenModel, id)
 
 	if tx.Error != nil {
-		return false
+		return models.Application{}, false
 	}
-
 
 	decodedValue, err := base64.RawURLEncoding.DecodeString(value)
 	hashedToken := blake3.Sum512(decodedValue)
 
 	if err != nil {
-		return false
+		return models.Application{}, false
 	}
 
-	return subtle.ConstantTimeCompare(hashedToken[:], tokenModel.Value) == 1
+	return tokenModel.Application, subtle.ConstantTimeCompare(hashedToken[:], tokenModel.Value) == 1
 }

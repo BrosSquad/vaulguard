@@ -39,7 +39,7 @@ func TestToken(t *testing.T) {
 
 		token := s.Generate(app.ID)
 
-		if !s.Verify(token) {
+		if _, ok := s.Verify(token); !ok {
 			t.Fatal("Token is not valid")
 		}
 	})
