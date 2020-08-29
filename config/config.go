@@ -14,7 +14,7 @@ type Config struct {
 	Database         string
 	DatabaseDSN      string
 	Mongo            string
-	Port             uint16
+	Port             int
 }
 
 func checkDatabaseProvider(provider string) error {
@@ -34,13 +34,13 @@ func checkDatabaseProvider(provider string) error {
 func NewConfig() (Config, error) {
 	config := Config{}
 
-	port, err := strconv.ParseUint(os.Getenv("PORT"), 10, 16)
+	port, err := strconv.ParseInt(os.Getenv("PORT"), 10, 16)
 
 	if err != nil {
 		return config, err
 	}
 
-	config.Port = uint16(port)
+	config.Port = int(port)
 
 	storeInSQL, err := strconv.ParseBool(os.Getenv("STORE_SECRETS_IN_SQL"))
 

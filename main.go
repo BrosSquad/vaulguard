@@ -6,6 +6,7 @@ import (
 
 	"github.com/BrosSquad/vaulguard/config"
 	"github.com/BrosSquad/vaulguard/db"
+	"github.com/gofiber/fiber"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -46,6 +47,20 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	_, close := connectToMongo(ctx, &cfg)
+
+	app := fiber.New(&fiber.Settings{})
+
+	apiV1 := app.Group("/api/v1")
+
+	secrets := apiV1.Group("/secrets")
+
+	secrets.Get("/", func(ctx *fiber.Ctx) {
+		ctx.JSON(map[string]string{"message": "Hello Secrets"})
+	})
+
+	if err := app.Listen(cfg.Port); err != nil {
+		log.Fatalf("Error while starting Fiber Server: %v", err)
+	}
 
 	close()
 	cancel()
