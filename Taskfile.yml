@@ -2,13 +2,11 @@ version: '3'
 tasks:
   development:
     cmds:
-      - go run main.go
+      - go run .
     env:
       PORT: 4000
       STORE_SECRETS_IN_SQL: true
       MONGODB: mongodb://localhost:27017
       DATABASE_PROVIDER: sqlite
-      DATABASE_DSN: development.db
+      DATABASE_DSN: '{{.DEV_DB}}'
       APP_KEY: SEPF5aqu5lR8aMLf76Siq5KzTsHh6Uifh94+sE5oZ68=
-  prod:
-    cmds:

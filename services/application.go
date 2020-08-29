@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+
 	"github.com/BrosSquad/vaulguard/models"
 	"gorm.io/gorm"
 )
@@ -9,6 +10,8 @@ import (
 var ErrAlreadyExists = errors.New("Model already exists.")
 
 type ApplicationService interface {
+	List(cb func([]models.Application) error) error
+	GetByName(name string) (models.Application, error)
 	Create(name string) (models.Application, error)
 	Get(page, perPage int) ([]models.Application, error)
 	GetOne(id uint) (models.Application, error)
@@ -22,6 +25,29 @@ type applicationService struct {
 
 func NewApplicationService(db *gorm.DB) ApplicationService {
 	return applicationService{db: db}
+}
+
+func (a applicationService) List(cb func([]models.Application) error) error {
+	results := make([]models.Application, 0, 50)
+	err := a.db.FindInBatches(&results, 50, func(tx *gorm.DB, batch int) error {
+		return cb(results)
+	}).Error
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a applicationService) GetByName(name string) (models.Application, error) {
+	var app models.Application
+
+	if err := a.db.Where("name = ?", name).Limit(1).Find(&app).Error; err != nil {
+		return models.Application{}, err
+	}
+
+	return app, nil
 }
 
 func (a applicationService) Get(page, perPage int) ([]models.Application, error) {

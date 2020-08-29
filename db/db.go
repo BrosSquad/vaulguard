@@ -14,13 +14,12 @@ import (
 )
 
 var (
-	DbConn      *gorm.DB
-	MongoClient *mongo.Client
+	dbConn *gorm.DB
 )
 
 // ConnectToMongo - Connects to the running mongo database instance
 func ConnectToMongo(ctx context.Context, url string) (_ *mongo.Client, err error) {
-	MongoClient, err = mongo.NewClient(options.Client().ApplyURI(url))
+	MongoClient, err := mongo.NewClient(options.Client().ApplyURI(url))
 
 	if err != nil {
 		return nil, err
@@ -48,7 +47,7 @@ func Migrate(useSqlSecretStorage bool) error {
 		dst = append(dst, &models.Secret{})
 	}
 
-	return DbConn.AutoMigrate(dst...)
+	return dbConn.AutoMigrate(dst...)
 }
 
 // ConnectToDatabaseProvider - Connects to different database providers supported by the application
@@ -72,15 +71,15 @@ func ConnectToDatabaseProvider(provider string, dsn string) (_ *gorm.DB, err err
 // ConnectToPostgres - Connects to the running postgres database instance
 func connectToPostgreSQL(dsn string) (_ *gorm.DB, err error) {
 	config := &gorm.Config{}
-	DbConn, err = gorm.Open(postgres.New(postgres.Config{}), config)
-	return DbConn, err
+	dbConn, err = gorm.Open(postgres.New(postgres.Config{}), config)
+	return dbConn, err
 }
 
 func connectToMySQL(dsn string) (_ *gorm.DB, err error) {
-	return DbConn, nil
+	return dbConn, nil
 }
 
 func connectToSQLite(dsn string) (_ *gorm.DB, err error) {
-	DbConn, err = gorm.Open(sqlite.Open(dsn), &gorm.Config{})
-	return DbConn, err
+	dbConn, err = gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+	return dbConn, err
 }

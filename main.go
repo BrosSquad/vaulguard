@@ -5,34 +5,31 @@ import (
 	"log"
 
 	"github.com/BrosSquad/vaulguard/config"
-	"github.com/BrosSquad/vaulguard/db"
+	"github.com/BrosSquad/vaulguard/handlers"
+	"github.com/BrosSquad/vaulguard/middleware"
+	"github.com/BrosSquad/vaulguard/services"
+	"github.com/gofiber/fiber"
 	"go.mongodb.org/mongo-driver/mongo"
+	"gorm.io/gorm"
 )
 
-func connectToMongo(ctx context.Context, cfg *config.Config) (*mongo.Client, func()) {
-	client, err := db.ConnectToMongo(ctx, cfg.Mongo)
+func registerAPIHandlers(cfg *config.Config, client *mongo.Client, db *gorm.DB, app *fiber.App) {
+	apiV1 := app.Group("/api/v1")
+	encryptionService, err := services.NewEncryptionService(cfg.ApplicationKey)
+	tokenService := services.NewTokenService(db)
+
+	apiV1.Use(middleware.TokenAuthMiddleware(middleware.TokenAuthConfig{
+		TokenService: tokenService,
+		Header:       "authorization",
+		HeaderPrefix: "token ",
+	}))
 
 	if err != nil {
-		log.Fatalf("Error while connecting to mongo db instance: %v\n", err)
+		log.Fatalf("Cannot create encryption service: %v", err)
 	}
 
-	return client, func() {
-		if err := client.Disconnect(ctx); err != nil {
-			log.Fatalf("Error while disconecting from mongodb instance: %v\n", err)
-		}
-	}
-}
-
-func connectToRelationalDatabaseAndMigrate(cfg *config.Config) {
-	_, err := db.ConnectToDatabaseProvider(cfg.Database, cfg.DatabaseDSN)
-
-	if err != nil {
-		log.Fatalf("Error while connection to PostgreSQL: %v", err)
-	}
-
-	if err := db.Migrate(cfg.StoreSecretInSql); err != nil {
-		log.Fatalf("Auto migration failed: %v", err)
-	}
+	secretService := createSecretService(db, client, encryptionService, cfg)
+	handlers.RegisterSecretHandlers(secretService, apiV1.Group("/secrets"))
 }
 
 func main() {
@@ -42,10 +39,18 @@ func main() {
 		log.Fatalf("Error while creating app configuration: %v\n", err)
 	}
 
-	go connectToRelationalDatabaseAndMigrate(&cfg)
+	db := connectToRelationalDatabaseAndMigrate(&cfg)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	_, close := connectToMongo(ctx, &cfg)
+	client, close := connectToMongo(ctx, &cfg)
+
+	app := fiber.New(&fiber.Settings{})
+
+	registerAPIHandlers(&cfg, client, db, app)
+
+	if err := app.Listen(cfg.Port); err != nil {
+		log.Fatalf("Error while starting Fiber Server: %v", err)
+	}
 
 	close()
 	cancel()
