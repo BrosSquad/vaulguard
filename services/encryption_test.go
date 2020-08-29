@@ -11,30 +11,30 @@ func TestEncryptionService(t *testing.T) {
 	_, err := rand.Read(key)
 
 	if err != nil {
-		t.Errorf("Cannot generate random key: %v", err)
+		t.Fatalf("Cannot generate random key: %v", err)
 	}
 
 	service, err := NewEncryptionService(key)
 
 	if err != nil {
-		t.Errorf("Cannot create encryption service: %v", err)
+		t.Fatalf("Cannot create encryption service: %v", err)
 	}
 
 	t.Run("Encryption", func(t *testing.T) {
 		encryptedBytes, err := service.EncryptString("Hello World")
 
 		if err != nil {
-			t.Errorf("Cannot encrypt text: %v", err)
+			t.Fatalf("Cannot encrypt text: %v", err)
 		}
 
 		str, err := service.Decrypt(encryptedBytes)
 
 		if err != nil {
-			t.Errorf("Decryption failed: %v", err)
+			t.Fatalf("Decryption failed: %v", err)
 		}
 
 		if str != "Hello World" {
-			t.Errorf("Starting string is not equal to decrypted string")
+			t.Fatalf("Starting string is not equal to decrypted string")
 		}
 	})
 
@@ -44,7 +44,7 @@ func TestEncryptionService(t *testing.T) {
 		_, err := service.Encrypt(dst, []byte("Hello World"))
 
 		if err == nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 	})
 
@@ -56,7 +56,7 @@ func TestEncryptionService(t *testing.T) {
 		_, err := service.Decrypt(data)
 
 		if err == nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 	})
 }

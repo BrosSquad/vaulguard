@@ -1,9 +1,10 @@
 package services
 
 import (
-	"gorm.io/driver/sqlite"
 	"os"
 	"testing"
+
+	"gorm.io/driver/sqlite"
 
 	"github.com/BrosSquad/vaulguard/models"
 	"gorm.io/gorm"
@@ -14,12 +15,12 @@ func TestToken(t *testing.T) {
 	defer os.Remove("token_test.db")
 
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 		return
 	}
 
 	if err := conn.AutoMigrate(&models.Application{}, &models.Token{}); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 		return
 	}
 
@@ -39,7 +40,7 @@ func TestToken(t *testing.T) {
 		token := s.Generate(app.ID)
 
 		if !s.Verify(token) {
-			t.Error("Token is not valid")
+			t.Fatal("Token is not valid")
 		}
 	})
 }

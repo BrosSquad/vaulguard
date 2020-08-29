@@ -1,6 +1,8 @@
 package models
 
 type Secret struct {
-	Key   string `gorm:"not null"`
-	Value string `gorm:"not null"`
+	ID            uint   `gorm:"primaryKey"`
+	Key           string `gorm:"uniqueIndex:application_id_key_idx;not null;"`
+	ApplicationId uint   `gorm:"not null;uniqueIndex:application_id_key_idx;"`
+	Value         []byte `gorm:"not null;"`
 }

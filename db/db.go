@@ -4,9 +4,12 @@ import (
 	"context"
 	"time"
 
+	"github.com/BrosSquad/vaulguard/models"
+
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -35,6 +38,19 @@ func ConnectToMongo(ctx context.Context, url string) (_ *mongo.Client, err error
 	return MongoClient, nil
 }
 
+func Migrate(useSqlSecretStorage bool) error {
+	dst := []interface{}{
+		&models.Application{},
+		&models.Token{},
+	}
+
+	if useSqlSecretStorage {
+		dst = append(dst, &models.Secret{})
+	}
+
+	return DbConn.AutoMigrate(dst...)
+}
+
 // ConnectToDatabaseProvider - Connects to different database providers supported by the application
 // Supported providers:
 // 1. PostgreSQL
@@ -60,10 +76,11 @@ func connectToPostgreSQL(dsn string) (_ *gorm.DB, err error) {
 	return DbConn, err
 }
 
-func connectToMySQL(dns string) (_ *gorm.DB, err error) {
+func connectToMySQL(dsn string) (_ *gorm.DB, err error) {
 	return DbConn, nil
 }
 
-func connectToSQLite(dns string) (_ *gorm.DB, err error) {
-	return DbConn, nil
+func connectToSQLite(dsn string) (_ *gorm.DB, err error) {
+	DbConn, err = gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+	return DbConn, err
 }

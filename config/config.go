@@ -9,15 +9,16 @@ import (
 )
 
 type Config struct {
-	ApplicationKey []byte
-	Database       string
-	DatabaseDSN    string
-	Mongo          string
-	Port           uint16
+	ApplicationKey   []byte
+	StoreSecretInSql bool
+	Database         string
+	DatabaseDSN      string
+	Mongo            string
+	Port             uint16
 }
 
 func checkDatabaseProvider(provider string) error {
-	providers := []string {"postgres", "mysql", "sqlite"}
+	providers := []string{"postgres", "mysql", "sqlite"}
 
 	provider = strings.ToLower(provider)
 
@@ -34,18 +35,26 @@ func NewConfig() (Config, error) {
 	config := Config{}
 
 	port, err := strconv.ParseUint(os.Getenv("PORT"), 10, 16)
+
 	if err != nil {
 		return config, err
 	}
 
 	config.Port = uint16(port)
 
-	mongo := os.Getenv("MONGODB")
-	if mongo == "" {
-		return config, errors.New("MongoDB Url is not set")
+	storeInSQL, err := strconv.ParseBool(os.Getenv("STORE_SECRETS_IN_SQL"))
+
+	if err == nil {
+		config.StoreSecretInSql = storeInSQL
 	}
 
-	config.Mongo = mongo
+	if storeInSQL {
+		mongo := os.Getenv("MONGODB")
+		if mongo == "" {
+			return config, errors.New("MongoDB Url is not set")
+		}
+		config.Mongo = mongo
+	}
 
 	database := os.Getenv("DATABASE_PROVIDER")
 	if database == "" {
