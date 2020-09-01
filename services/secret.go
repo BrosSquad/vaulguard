@@ -155,6 +155,12 @@ func (g gormSecretService) Update(applicationID uint, key, value string) (models
 func (g gormSecretService) Delete(applicationID uint, key string) error {
 	secret := models.Secret{}
 
+	cacheKey := CacheKey{applicationID, key}
+
+	if _, ok := g.cache[cacheKey]; ok {
+		delete(g.cache, cacheKey)
+	}
+
 	if err := g.db.Where("key = ? AND application_id = ?", key, applicationID).Delete(&secret).Error; err != nil {
 		return err
 	}
