@@ -11,26 +11,34 @@ type Secret struct {
 }
 
 type SecretService interface {
-	Get(applicationId uint, page, perPage int) ([]Secret, error)
-	GetOne(applicationId uint, key string) (Secret, error)
-	Create(applicationId uint, key, value string) (models.Secret, error)
-	Update(applicationId uint, key, value string) (models.Secret, error)
-	Delete(applicationId uint, key string) error
+	Get(applicationID uint, page, perPage int) ([]Secret, error)
+	GetOne(applicationID uint, key string) (Secret, error)
+	Create(applicationID uint, key, value string) (models.Secret, error)
+	Update(applicationID uint, key, value string) (models.Secret, error)
+	Delete(applicationID uint, key string) error
+}
+
+type CacheKey struct {
+	applicationID uint
+	key           string
 }
 
 type gormSecretService struct {
+	cacheLimit        int
+	cache             map[CacheKey]models.Secret
 	db                *gorm.DB
 	encryptionService EncryptionService
 }
 
 func NewGormSecretStorage(db *gorm.DB, service EncryptionService) SecretService {
 	return gormSecretService{
+		cacheLimit:        1024,
 		db:                db,
 		encryptionService: service,
 	}
 }
 
-func (g gormSecretService) Get(applicationId uint, page, perPage int) ([]Secret, error) {
+func (g gormSecretService) Get(applicationID uint, page, perPage int) ([]Secret, error) {
 	var secrets []models.Secret
 
 	if page < 0 {
@@ -38,7 +46,7 @@ func (g gormSecretService) Get(applicationId uint, page, perPage int) ([]Secret,
 	}
 
 	err := g.db.
-		Where("application_id = ?", applicationId).
+		Where("application_id = ?", applicationID).
 		Limit(perPage).
 		Offset((page - 1) * perPage).
 		Find(&secrets).Error
@@ -64,11 +72,21 @@ func (g gormSecretService) Get(applicationId uint, page, perPage int) ([]Secret,
 	return secretsDto, nil
 }
 
-func (g gormSecretService) GetOne(applicationId uint, key string) (Secret, error) {
+func (g gormSecretService) GetOne(applicationID uint, key string) (Secret, error) {
 	secret := models.Secret{}
 
-	if err := g.db.Where("key = ? AND application_id = ?", key, applicationId).First(&secret).Error; err != nil {
-		return Secret{}, err
+	value, ok := g.cache[CacheKey{applicationID, key}]
+
+	if ok {
+		secret = value
+	} else {
+		err := g.db.Where("key = ? AND application_id = ?", key, applicationID).First(&secret).Error
+		if err != nil {
+			return Secret{}, err
+		}
+		if len(g.cache) < g.cacheLimit {
+			g.cache[CacheKey{applicationID, key}] = secret
+		}
 	}
 
 	decryptedValue, err := g.encryptionService.Decrypt(secret.Value)
@@ -83,11 +101,11 @@ func (g gormSecretService) GetOne(applicationId uint, key string) (Secret, error
 	}, nil
 }
 
-func (g gormSecretService) Create(applicationId uint, key, value string) (models.Secret, error) {
+func (g gormSecretService) Create(applicationID uint, key, value string) (models.Secret, error) {
 	var count int64
 	var secret models.Secret
 
-	if err := g.db.Model(&secret).Where("key = ? AND application_id = ?", key, applicationId).Count(&count).Error; err != nil {
+	if err := g.db.Model(&secret).Where("key = ? AND application_id = ?", key, applicationID).Count(&count).Error; err != nil {
 		return secret, err
 	}
 
@@ -103,7 +121,7 @@ func (g gormSecretService) Create(applicationId uint, key, value string) (models
 
 	secret.Key = key
 	secret.Value = encrypted
-	secret.ApplicationId = applicationId
+	secret.ApplicationId = applicationID
 
 	if err := g.db.Create(&secret).Error; err != nil {
 		return models.Secret{}, err
@@ -112,10 +130,10 @@ func (g gormSecretService) Create(applicationId uint, key, value string) (models
 	return secret, nil
 }
 
-func (g gormSecretService) Update(applicationId uint, key, value string) (models.Secret, error) {
+func (g gormSecretService) Update(applicationID uint, key, value string) (models.Secret, error) {
 	secret := models.Secret{}
 
-	if err := g.db.Where("key = ? AND application_id = ?", key, applicationId).Find(&secret).Error; err != nil {
+	if err := g.db.Where("key = ? AND application_id = ?", key, applicationID).Find(&secret).Error; err != nil {
 		return secret, err
 	}
 
@@ -134,10 +152,10 @@ func (g gormSecretService) Update(applicationId uint, key, value string) (models
 	return secret, nil
 }
 
-func (g gormSecretService) Delete(applicationId uint, key string) error {
+func (g gormSecretService) Delete(applicationID uint, key string) error {
 	secret := models.Secret{}
 
-	if err := g.db.Where("key = ? AND application_id = ?", key, applicationId).Delete(&secret).Error; err != nil {
+	if err := g.db.Where("key = ? AND application_id = ?", key, applicationID).Delete(&secret).Error; err != nil {
 		return err
 	}
 
