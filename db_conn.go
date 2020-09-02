@@ -24,7 +24,7 @@ func connectToMongo(ctx context.Context, cfg *config.Config) (*mongo.Client, fun
 	}
 }
 
-func connectToRelationalDatabaseAndMigrate(cfg *config.Config) *gorm.DB {
+func connectToRelationalDatabaseAndMigrate(cfg *config.Config) (*gorm.DB, func() error) {
 	conn, err := db.ConnectToDatabaseProvider(cfg.Database, cfg.DatabaseDSN)
 
 	if err != nil {
@@ -35,5 +35,5 @@ func connectToRelationalDatabaseAndMigrate(cfg *config.Config) *gorm.DB {
 		log.Fatalf("Auto migration failed: %v", err)
 	}
 
-	return conn
+	return conn, db.Close
 }

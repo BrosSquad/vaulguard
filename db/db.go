@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/BrosSquad/vaulguard/models"
-
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"gorm.io/driver/postgres"
@@ -82,4 +81,14 @@ func connectToMySQL(dsn string) (_ *gorm.DB, err error) {
 func connectToSQLite(dsn string) (_ *gorm.DB, err error) {
 	dbConn, err = gorm.Open(sqlite.Open(dsn), &gorm.Config{})
 	return dbConn, err
+}
+
+func Close() error {
+	db, err := dbConn.DB()
+
+	if err != nil {
+		return err
+	}
+
+	return db.Close()
 }
