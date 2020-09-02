@@ -14,7 +14,7 @@ type SecretService interface {
 	Get(applicationID uint, page, perPage int) ([]Secret, error)
 	GetOne(applicationID uint, key string) (Secret, error)
 	Create(applicationID uint, key, value string) (models.Secret, error)
-	Update(applicationID uint, key, value string) (models.Secret, error)
+	Update(applicationID uint, key, newKey, value string) (models.Secret, error)
 	Delete(applicationID uint, key string) error
 }
 
@@ -32,6 +32,7 @@ type gormSecretService struct {
 
 func NewGormSecretStorage(db *gorm.DB, service EncryptionService) SecretService {
 	return gormSecretService{
+		cache:             make(map[CacheKey]models.Secret),
 		cacheLimit:        1024,
 		db:                db,
 		encryptionService: service,
@@ -127,10 +128,14 @@ func (g gormSecretService) Create(applicationID uint, key, value string) (models
 		return models.Secret{}, err
 	}
 
+	if len(g.cache) < g.cacheLimit {
+		g.cache[CacheKey{applicationID, key}] = secret
+	}
+
 	return secret, nil
 }
 
-func (g gormSecretService) Update(applicationID uint, key, value string) (models.Secret, error) {
+func (g gormSecretService) Update(applicationID uint, key, newKey, value string) (models.Secret, error) {
 	secret := models.Secret{}
 
 	if err := g.db.Where("key = ? AND application_id = ?", key, applicationID).Find(&secret).Error; err != nil {
@@ -144,9 +149,17 @@ func (g gormSecretService) Update(applicationID uint, key, value string) (models
 	}
 
 	secret.Value = encrypted
+	secret.Key = newKey
 
 	if err := g.db.Save(&secret).Error; err != nil {
 		return models.Secret{}, err
+	}
+
+	// Invalidate the old cache and add the new value to the cache
+	cacheKey := CacheKey{applicationID, key}
+	if _, ok := g.cache[cacheKey]; ok {
+		delete(g.cache, cacheKey)
+		g.cache[CacheKey{applicationID, newKey}] = secret
 	}
 
 	return secret, nil

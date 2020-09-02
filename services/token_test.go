@@ -4,15 +4,16 @@ import (
 	"os"
 	"testing"
 
-	"gorm.io/driver/sqlite"
-
 	"github.com/BrosSquad/vaulguard/models"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
 func TestToken(t *testing.T) {
 	conn, err := gorm.Open(sqlite.Open("token_test.db"), &gorm.Config{})
+	db, _ := conn.DB()
 	defer os.Remove("token_test.db")
+	defer db.Close()
 
 	if err != nil {
 		t.Fatal(err)

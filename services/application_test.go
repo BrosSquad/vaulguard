@@ -11,8 +11,11 @@ import (
 
 func TestApplicationService(t *testing.T) {
 	conn, err := gorm.Open(sqlite.Open("application_test.db"), &gorm.Config{})
+	db, _ := conn.DB()
 
 	defer os.Remove("application_test.db")
+	defer db.Close()
+
 	if err != nil {
 		t.Fatal(err)
 		return
