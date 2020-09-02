@@ -39,10 +39,12 @@ func main() {
 		log.Fatalf("Error while creating app configuration: %v\n", err)
 	}
 
-	db := connectToRelationalDatabaseAndMigrate(&cfg)
+	db, dbClose := connectToRelationalDatabaseAndMigrate(&cfg)
+	defer dbClose()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	client, close := connectToMongo(ctx, &cfg)
+	client, mongoClose := connectToMongo(ctx, &cfg)
+	defer mongoClose()
 
 	app := fiber.New(&fiber.Settings{})
 
@@ -52,6 +54,5 @@ func main() {
 		log.Fatalf("Error while starting Fiber Server: %v", err)
 	}
 
-	close()
 	cancel()
 }
