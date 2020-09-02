@@ -12,8 +12,10 @@ import (
 
 func TestNewGormSecretStorage(t *testing.T) {
 	conn, err := gorm.Open(sqlite.Open("secret_test.db"), &gorm.Config{})
+	db, _ := conn.DB()
 
 	defer os.Remove("secret_test.db")
+	defer db.Close()
 	if err != nil {
 		t.Error(err)
 		return
@@ -58,7 +60,7 @@ func TestNewGormSecretStorage(t *testing.T) {
 		}
 
 		newValue := "postgres://localhost:5432/database"
-		_, err = service.Update(application.ID, "DATABASE_CONNECTION_2", newValue)
+		_, err = service.Update(application.ID, "DATABASE_CONNECTION_2", "DATABASE_CONNECTION_2", newValue)
 
 		if err != nil {
 			t.Fatalf("Error while updating secret: %v", err)
