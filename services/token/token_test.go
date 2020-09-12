@@ -1,4 +1,4 @@
-package services
+package token
 
 import (
 	"os"
@@ -31,13 +31,12 @@ func TestToken(t *testing.T) {
 	conn.Create(&app)
 
 	t.Run("Generate", func(t *testing.T) {
-		s := NewTokenService(conn)
+		s := NewService(NewSqlStorage(conn))
 		_ = s.Generate(app.ID)
 	})
 
 	t.Run("Verify", func(t *testing.T) {
-		s := NewTokenService(conn)
-
+		s := NewService(NewSqlStorage(conn))
 		token := s.Generate(app.ID)
 
 		if _, ok := s.Verify(token); !ok {

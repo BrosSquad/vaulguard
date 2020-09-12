@@ -1,30 +1,28 @@
-package services
+package token
 
 import (
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
 	"fmt"
-
 	"github.com/BrosSquad/vaulguard/models"
-	"gorm.io/gorm"
 	"lukechampine.com/blake3"
 )
 
-type TokenService interface {
+type Service interface {
 	Generate(uint) string
 	Verify(string) (models.Application, bool)
 }
 
-type tokenService struct {
-	db *gorm.DB
+type service struct {
+	storage Storage
 }
 
-func NewTokenService(db *gorm.DB) TokenService {
-	return tokenService{db: db}
+func NewService(storage Storage) Service {
+	return service{storage}
 }
 
-func (s tokenService) Generate(applicationId uint) string {
+func (s service) Generate(applicationId uint) string {
 	tokenBytes := make([]byte, 64)
 	_, err := rand.Read(tokenBytes)
 
@@ -38,18 +36,16 @@ func (s tokenService) Generate(applicationId uint) string {
 		ApplicationId: applicationId,
 		Value:         hashed[:],
 	}
-	tx := s.db.Create(&token)
 
-	if tx.Error != nil {
+	if s.storage.Create(&token) != nil {
 		return ""
 	}
 	return fmt.Sprintf("VaulGuard-%d-%s", token.ID, base64.RawURLEncoding.EncodeToString(tokenBytes))
 }
 
-func (s tokenService) Verify(token string) (models.Application, bool) {
+func (s service) Verify(token string) (models.Application, bool) {
 	var id uint
 	var value string
-	tokenModel := models.Token{}
 
 	_, err := fmt.Sscanf(token, "VaulGuard-%d-%s", &id, &value)
 
@@ -57,9 +53,9 @@ func (s tokenService) Verify(token string) (models.Application, bool) {
 		return models.Application{}, false
 	}
 
-	tx := s.db.Joins("Application").First(&tokenModel, id)
+	t, err := s.storage.Get(id)
 
-	if tx.Error != nil {
+	if err != nil {
 		return models.Application{}, false
 	}
 
@@ -70,5 +66,5 @@ func (s tokenService) Verify(token string) (models.Application, bool) {
 		return models.Application{}, false
 	}
 
-	return tokenModel.Application, subtle.ConstantTimeCompare(hashedToken[:], tokenModel.Value) == 1
+	return t.Application, subtle.ConstantTimeCompare(hashedToken[:], t.Value) == 1
 }

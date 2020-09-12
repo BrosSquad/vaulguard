@@ -36,14 +36,11 @@ func ConnectToMongo(ctx context.Context, url string) (_ *mongo.Client, err error
 	return MongoClient, nil
 }
 
-func Migrate(useSqlSecretStorage bool) error {
+func Migrate() error {
 	dst := []interface{}{
 		&models.Application{},
 		&models.Token{},
-	}
-
-	if useSqlSecretStorage {
-		dst = append(dst, &models.Secret{})
+		&models.Secret{},
 	}
 
 	return dbConn.AutoMigrate(dst...)

@@ -1,10 +1,11 @@
-package services
+package application
 
 import (
 	"os"
 	"testing"
 
 	"github.com/BrosSquad/vaulguard/models"
+	"github.com/BrosSquad/vaulguard/services"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -25,7 +26,7 @@ func TestApplicationService(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	service := NewApplicationService(conn)
+	service := NewSqlService(conn)
 
 	t.Run("CreateApplication", func(t *testing.T) {
 		app, err := service.Create("Test Application")
@@ -48,7 +49,7 @@ func TestApplicationService(t *testing.T) {
 			t.Fatalf("Error while inserting new application: %v", err)
 		}
 
-		if _, err := service.Create("Test Application"); err != ErrAlreadyExists {
+		if _, err := service.Create("Test Application"); err != services.ErrAlreadyExists {
 			t.Fatalf("Inserting 2 applications with same name successed: %v", err)
 		}
 	})

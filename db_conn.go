@@ -11,6 +11,9 @@ import (
 )
 
 func connectToMongo(ctx context.Context, cfg *config.Config) (*mongo.Client, func()) {
+	if cfg.StoreInSql {
+		return nil, func() {}
+	}
 	client, err := db.ConnectToMongo(ctx, cfg.Mongo)
 
 	if err != nil {
@@ -31,7 +34,7 @@ func connectToRelationalDatabaseAndMigrate(cfg *config.Config) (*gorm.DB, func()
 		log.Fatalf("Error while connection to PostgreSQL: %v", err)
 	}
 
-	if err := db.Migrate(cfg.StoreSecretInSql); err != nil {
+	if err := db.Migrate(); err != nil {
 		log.Fatalf("Auto migration failed: %v", err)
 	}
 

@@ -16,7 +16,8 @@ import (
 func registerAPIHandlers(cfg *config.Config, client *mongo.Client, db *gorm.DB, app *fiber.App) {
 	apiV1 := app.Group("/api/v1")
 	encryptionService, err := services.NewEncryptionService(cfg.ApplicationKey)
-	tokenService := services.NewTokenService(db)
+	tokenService := createTokenService(db, client, cfg)
+
 
 	apiV1.Use(middleware.TokenAuthMiddleware(middleware.TokenAuthConfig{
 		TokenService: tokenService,
@@ -34,21 +35,26 @@ func registerAPIHandlers(cfg *config.Config, client *mongo.Client, db *gorm.DB, 
 
 func main() {
 	cfg, err := config.NewConfig()
-
 	if err != nil {
 		log.Fatalf("Error while creating app configuration: %v\n", err)
 	}
 
-	db, dbClose := connectToRelationalDatabaseAndMigrate(&cfg)
-	defer dbClose()
-
+	var db *gorm.DB
+	var mongoClient *mongo.Client
+	var dbClose func() error
+	var mongoClose func()
 	ctx, cancel := context.WithCancel(context.Background())
-	client, mongoClose := connectToMongo(ctx, &cfg)
-	defer mongoClose()
 
+	if cfg.StoreInSql {
+		db, dbClose = connectToRelationalDatabaseAndMigrate(&cfg)
+		defer dbClose()
+	} else {
+		mongoClient, mongoClose = connectToMongo(ctx, &cfg)
+		defer mongoClose()
+	}
 	app := fiber.New(&fiber.Settings{})
 
-	registerAPIHandlers(&cfg, client, db, app)
+	registerAPIHandlers(&cfg, mongoClient, db, app)
 
 	if err := app.Listen(cfg.Port); err != nil {
 		log.Fatalf("Error while starting Fiber Server: %v", err)

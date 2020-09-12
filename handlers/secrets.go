@@ -4,17 +4,17 @@ import (
 	"strconv"
 
 	"github.com/BrosSquad/vaulguard/models"
-	"github.com/BrosSquad/vaulguard/services"
+	"github.com/BrosSquad/vaulguard/services/secret"
 	"github.com/gofiber/fiber"
 )
 
-func RegisterSecretHandlers(service services.SecretService, r fiber.Router) {
+func RegisterSecretHandlers(service secret.Service, r fiber.Router) {
 	r.Get("/", getSecrets(service))
 	r.Post("/many", getManySecrets(service))
 	r.Delete("/invalidate", invalidateCache(service))
 }
 
-func getSecrets(service services.SecretService) func(*fiber.Ctx) {
+func getSecrets(service secret.Service) func(*fiber.Ctx) {
 	return func(ctx *fiber.Ctx) {
 		app := ctx.Locals("application").(models.Application)
 		pageStr := ctx.Query("page", "1")
@@ -44,7 +44,7 @@ func getSecrets(service services.SecretService) func(*fiber.Ctx) {
 	}
 }
 
-func getManySecrets(service services.SecretService) func(*fiber.Ctx) {
+func getManySecrets(service secret.Service) func(*fiber.Ctx) {
 	return func(ctx *fiber.Ctx) {
 		var keys []string
 		app := ctx.Locals("application").(models.Application)
@@ -64,7 +64,7 @@ func getManySecrets(service services.SecretService) func(*fiber.Ctx) {
 	}
 }
 
-func invalidateCache(service services.SecretService) func(*fiber.Ctx) {
+func invalidateCache(service secret.Service) func(*fiber.Ctx) {
 	return func(ctx *fiber.Ctx) {
 		app := ctx.Locals("application").(models.Application)
 

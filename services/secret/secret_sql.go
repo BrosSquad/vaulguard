@@ -1,42 +1,22 @@
-package services
+package secret
 
 import (
 	"log"
 	"sync"
 
 	"github.com/BrosSquad/vaulguard/models"
+	"github.com/BrosSquad/vaulguard/services"
 	"gorm.io/gorm"
 )
 
-type Secret struct {
-	Key   string
-	Value string
-}
-
-type SecretService interface {
-	Paginate(applicationID uint, page, perPage int) (map[string]string, error)
-	Get(applicationID uint, key []string) (map[string]string, error)
-	GetOne(applicationID uint, key string) (Secret, error)
-	Create(applicationID uint, key, value string) (models.Secret, error)
-	Update(applicationID uint, key, newKey, value string) (models.Secret, error)
-	Delete(applicationID uint, key string) error
-	InvalidateCache(applicationID uint) error
-}
-type secretService struct {
-	mutex             *sync.RWMutex
-	cacheLimit        int
-	cache             map[uint]map[string]models.Secret
-	encryptionService EncryptionService
-}
-
 type gormSecretService struct {
-	secretService
+	baseService
 	db *gorm.DB
 }
 
-func NewGormSecretStorage(db *gorm.DB, service EncryptionService) SecretService {
+func NewGormSecretStorage(db *gorm.DB, service services.EncryptionService) Service {
 	return gormSecretService{
-		secretService: secretService{
+		baseService: baseService{
 			mutex:             &sync.RWMutex{},
 			cache:             make(map[uint]map[string]models.Secret, 1024),
 			cacheLimit:        8192,
@@ -89,7 +69,7 @@ func (g gormSecretService) GetOne(applicationID uint, key string) (Secret, error
 		if err != nil {
 			return Secret{}, err
 		}
-		go updateSecretCache(&g.secretService, []models.Secret{secret}, applicationID)
+		go updateSecretCache(&g.baseService, []models.Secret{secret}, applicationID)
 	}
 
 	decryptedValue, err := g.encryptionService.Decrypt(secret.Value)
@@ -104,7 +84,7 @@ func (g gormSecretService) GetOne(applicationID uint, key string) (Secret, error
 	}, nil
 }
 
-func updateSecretCache(g *secretService, secrets []models.Secret, applicationID uint) {
+func updateSecretCache(g *baseService, secrets []models.Secret, applicationID uint) {
 
 	if len(g.cache) >= g.cacheLimit {
 		return
@@ -147,7 +127,7 @@ func (g gormSecretService) Get(applicationID uint, keys []string) (_ map[string]
 			return nil, err
 		}
 
-		go updateSecretCache(&g.secretService, secretsFetch, applicationID)
+		go updateSecretCache(&g.baseService, secretsFetch, applicationID)
 		for _, s := range secretsFetch {
 			secrets = append(secrets, s)
 		}
@@ -176,7 +156,7 @@ func (g gormSecretService) Create(applicationID uint, key, value string) (models
 	}
 
 	if count > 0 {
-		return models.Secret{}, ErrAlreadyExists
+		return models.Secret{}, services.ErrAlreadyExists
 	}
 
 	encrypted, err := g.encryptionService.EncryptString(value)

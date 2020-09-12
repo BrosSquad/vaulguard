@@ -12,7 +12,7 @@ import (
 type Config struct {
 	Debug            bool
 	ApplicationKey   []byte
-	StoreSecretInSql bool
+	StoreInSql bool
 	Database         string
 	DatabaseDSN      string
 	Mongo            string
@@ -39,7 +39,7 @@ func handleFlags(cfg *Config) error {
 	debug := flag.Bool("debug", false, "Debug mode - Command line arguments are only accepted in DEBUG mode")
 	skipEnv := flag.Bool("skip-env", false, "Skips Environmental variables and only uses command line flags")
 	port := flag.Int("port", 4000, "HTTP Server port")
-	storeSecretsInSQL := flag.Bool("store-secrets-in-sql", false, "Store secrets in SQL database")
+	storeSecretsInSQL := flag.Bool("store-in-sql", false, "Store data in SQL database")
 	mongo := flag.String("mongo", "", "MongoDB connection string")
 	dbProvider := flag.String("provider", "sqlite", "Relational database provider (sqlite, mysql, postgres)")
 	connectionString := flag.String("db-connection", "", "Relational database connection string")
@@ -52,7 +52,7 @@ func handleFlags(cfg *Config) error {
 
 	cfg.Debug = *debug
 	cfg.Port = *port
-	cfg.StoreSecretInSql = *storeSecretsInSQL
+	cfg.StoreInSql = *storeSecretsInSQL
 	cfg.Mongo = *mongo
 	cfg.Database = *dbProvider
 	cfg.DatabaseDSN = *connectionString
@@ -98,7 +98,7 @@ func NewConfig(skipFlags ...bool) (Config, error) {
 	storeInSQL, err := strconv.ParseBool(os.Getenv("STORE_SECRETS_IN_SQL"))
 
 	if err == nil {
-		config.StoreSecretInSql = storeInSQL
+		config.StoreInSql = storeInSQL
 	}
 
 	if storeInSQL {

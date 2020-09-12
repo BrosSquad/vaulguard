@@ -1,4 +1,4 @@
-package services
+package secret
 
 import (
 	"crypto/rand"
@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/BrosSquad/vaulguard/models"
+	"github.com/BrosSquad/vaulguard/services"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -33,7 +34,7 @@ func TestNewGormSecretStorage(t *testing.T) {
 
 	key := make([]byte, 32)
 	_, _ = rand.Read(key)
-	encryptionService, _ := NewEncryptionService(key)
+	encryptionService, _ := services.NewEncryptionService(key)
 	service := NewGormSecretStorage(conn, encryptionService)
 
 	t.Run("CreateSecret", func(t *testing.T) {
@@ -144,7 +145,7 @@ func BenchmarkSecretsInSqlite(b *testing.B) {
 
 	appKey := make([]byte, 32)
 	_, _ = rand.Read(appKey)
-	encryptionService, _ := NewEncryptionService(appKey)
+	encryptionService, _ := services.NewEncryptionService(appKey)
 	service := NewGormSecretStorage(conn, encryptionService)
 
 	secretsMap := make([]Secret, 10000)
