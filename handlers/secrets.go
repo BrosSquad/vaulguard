@@ -10,6 +10,8 @@ import (
 
 func RegisterSecretHandlers(service services.SecretService, r fiber.Router) {
 	r.Get("/", getSecrets(service))
+	r.Post("/many", getManySecrets(service))
+	r.Delete("/invalidate", invalidateCache(service))
 }
 
 func getSecrets(service services.SecretService) func(*fiber.Ctx) {
@@ -31,7 +33,7 @@ func getSecrets(service services.SecretService) func(*fiber.Ctx) {
 			return
 		}
 
-		secrets, err := service.Get(app.ID, page, perPage)
+		secrets, err := service.Paginate(app.ID, page, perPage)
 
 		if err != nil {
 			ctx.Next(err)
@@ -39,5 +41,38 @@ func getSecrets(service services.SecretService) func(*fiber.Ctx) {
 		}
 
 		ctx.JSON(secrets)
+	}
+}
+
+func getManySecrets(service services.SecretService) func(*fiber.Ctx) {
+	return func(ctx *fiber.Ctx) {
+		var keys []string
+		app := ctx.Locals("application").(models.Application)
+		if err := ctx.BodyParser(&keys); err != nil {
+			ctx.Next(fiber.NewError(400, "Invalid Payload"))
+			return
+		}
+
+		secrets, err := service.Get(app.ID, keys)
+
+		if err != nil {
+			ctx.Next(err)
+			return
+		}
+
+		ctx.JSON(secrets)
+	}
+}
+
+func invalidateCache(service services.SecretService) func(*fiber.Ctx) {
+	return func(ctx *fiber.Ctx) {
+		app := ctx.Locals("application").(models.Application)
+
+		if err := service.InvalidateCache(app.ID); err != nil {
+			ctx.Next(fiber.NewError(500, "Error while invalidating the cache"))
+			return
+		}
+
+		ctx.SendStatus(204)
 	}
 }
