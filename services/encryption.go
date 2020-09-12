@@ -3,6 +3,7 @@ package services
 import (
 	"crypto/cipher"
 	"crypto/rand"
+	"errors"
 	"fmt"
 
 	"github.com/gofiber/utils"
@@ -57,7 +58,7 @@ func (s encryptionService) Encrypt(dst, msg []byte) ([]byte, error) {
 	}
 
 	if n != len(dst) {
-		return nil, fmt.Errorf("Cannot generate random nonce")
+		return nil, errors.New("Cannot generate random nonce")
 	}
 
 	return s.cipher.Seal(dst, dst, msg, nil), nil
@@ -65,7 +66,7 @@ func (s encryptionService) Encrypt(dst, msg []byte) ([]byte, error) {
 
 func (s encryptionService) Decrypt(msg []byte) (string, error) {
 	if len(msg) < s.cipher.NonceSize() {
-		return "", fmt.Errorf("Size of message is less than nonce size")
+		return "", errors.New("Size of message is less than nonce size")
 	}
 	nonce, ciphertext := msg[:s.cipher.NonceSize()], msg[s.cipher.NonceSize():]
 

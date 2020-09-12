@@ -25,7 +25,7 @@ var (
 func applicationCommands() *cobra.Command {
 	application := &cobra.Command{
 		Use: "app",
-	}	
+	}
 
 	list := &cobra.Command{
 		Use:  "list",
@@ -116,6 +116,37 @@ func applicationCommands() *cobra.Command {
 	return application
 }
 
+func tokenCommands() *cobra.Command {
+	token := &cobra.Command{
+		Use: "token",
+	}
+
+	create := &cobra.Command{
+		Use:  "create",
+		Long: "Create new token for application",
+		Args: cobra.MinimumNArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			app, err := applicationService.GetByName(args[0])
+
+			if err != nil {
+				log.Fatal(err.Error())
+			}
+
+			token := tokenService.Generate(app.ID)
+
+			if token == "" {
+				log.Fatal("Error while generating Auth Token")
+			}
+
+			fmt.Printf("Auth Token: %s\n", token)
+		},
+	}
+
+	token.AddCommand(create)
+
+	return token
+}
+
 func parseCommands() error {
 	rootCmd = &cobra.Command{
 		Use:   "vaulguard",
@@ -124,6 +155,7 @@ func parseCommands() error {
 	}
 
 	rootCmd.AddCommand(applicationCommands())
+	rootCmd.AddCommand(tokenCommands())
 
 	return rootCmd.Execute()
 }

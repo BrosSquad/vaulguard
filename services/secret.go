@@ -1,6 +1,9 @@
 package services
 
 import (
+	"log"
+	"sync"
+
 	"github.com/BrosSquad/vaulguard/models"
 	"gorm.io/gorm"
 )
@@ -11,35 +14,39 @@ type Secret struct {
 }
 
 type SecretService interface {
-	Get(applicationID uint, page, perPage int) ([]Secret, error)
+	Paginate(applicationID uint, page, perPage int) (map[string]string, error)
+	Get(applicationID uint, key []string) (map[string]string, error)
 	GetOne(applicationID uint, key string) (Secret, error)
 	Create(applicationID uint, key, value string) (models.Secret, error)
 	Update(applicationID uint, key, newKey, value string) (models.Secret, error)
 	Delete(applicationID uint, key string) error
+	InvalidateCache(applicationID uint) error
 }
-
-type CacheKey struct {
-	applicationID uint
-	key           string
+type secretService struct {
+	mutex             *sync.RWMutex
+	cacheLimit        int
+	cache             map[uint]map[string]models.Secret
+	encryptionService EncryptionService
 }
 
 type gormSecretService struct {
-	cacheLimit        int
-	cache             map[CacheKey]models.Secret
-	db                *gorm.DB
-	encryptionService EncryptionService
+	secretService
+	db *gorm.DB
 }
 
 func NewGormSecretStorage(db *gorm.DB, service EncryptionService) SecretService {
 	return gormSecretService{
-		cache:             make(map[CacheKey]models.Secret),
-		cacheLimit:        1024,
-		db:                db,
-		encryptionService: service,
+		secretService: secretService{
+			mutex:             &sync.RWMutex{},
+			cache:             make(map[uint]map[string]models.Secret, 1024),
+			cacheLimit:        8192,
+			encryptionService: service,
+		},
+		db: db,
 	}
 }
 
-func (g gormSecretService) Get(applicationID uint, page, perPage int) ([]Secret, error) {
+func (g gormSecretService) Paginate(applicationID uint, page, perPage int) (map[string]string, error) {
 	var secrets []models.Secret
 
 	if page < 0 {
@@ -56,18 +63,15 @@ func (g gormSecretService) Get(applicationID uint, page, perPage int) ([]Secret,
 		return nil, err
 	}
 
-	secretsDto := make([]Secret, len(secrets))
+	secretsDto := make(map[string]string, len(secrets))
 
-	for i, s := range secrets {
+	for _, s := range secrets {
 		decryptedValue, err := g.encryptionService.Decrypt(s.Value)
 		if err != nil {
 			return nil, err
 		}
 
-		secretsDto[i] = Secret{
-			Key:   s.Key,
-			Value: decryptedValue,
-		}
+		secretsDto[s.Key] = decryptedValue
 	}
 
 	return secretsDto, nil
@@ -76,7 +80,7 @@ func (g gormSecretService) Get(applicationID uint, page, perPage int) ([]Secret,
 func (g gormSecretService) GetOne(applicationID uint, key string) (Secret, error) {
 	secret := models.Secret{}
 
-	value, ok := g.cache[CacheKey{applicationID, key}]
+	value, ok := g.cache[applicationID][key]
 
 	if ok {
 		secret = value
@@ -85,9 +89,7 @@ func (g gormSecretService) GetOne(applicationID uint, key string) (Secret, error
 		if err != nil {
 			return Secret{}, err
 		}
-		if len(g.cache) < g.cacheLimit {
-			g.cache[CacheKey{applicationID, key}] = secret
-		}
+		go updateSecretCache(&g.secretService, []models.Secret{secret}, applicationID)
 	}
 
 	decryptedValue, err := g.encryptionService.Decrypt(secret.Value)
@@ -100,6 +102,69 @@ func (g gormSecretService) GetOne(applicationID uint, key string) (Secret, error
 		Key:   key,
 		Value: decryptedValue,
 	}, nil
+}
+
+func updateSecretCache(g *secretService, secrets []models.Secret, applicationID uint) {
+
+	if len(g.cache) >= g.cacheLimit {
+		return
+	}
+
+	if _, ok := g.cache[applicationID]; !ok {
+		g.cache[applicationID] = make(map[string]models.Secret, g.cacheLimit)
+	}
+
+	secretsMap := g.cache[applicationID]
+	for _, s := range secrets {
+		if _, ok := secretsMap[s.Key]; !ok && len(secretsMap) < g.cacheLimit {
+			g.mutex.Lock()
+			secretsMap[s.Key] = s
+			g.mutex.Unlock()
+
+		}
+	}
+}
+
+func (g gormSecretService) Get(applicationID uint, keys []string) (_ map[string]string, err error) {
+	var keysToFetch []string
+	keysLen := len(keys)
+	secrets := make([]models.Secret, 0, keysLen)
+
+	for _, key := range keys {
+		if s, ok := g.cache[applicationID][key]; ok {
+			secrets = append(secrets, s)
+		} else {
+			keysToFetch = append(keysToFetch, key)
+		}
+	}
+
+	if len(keysToFetch) > 0 {
+		log.Printf("Keys to fetch: %d\n", len(keysToFetch))
+		var secretsFetch []models.Secret
+		result := g.db.Where("application_id = ? AND key IN ?", applicationID, keysToFetch).Find(&secretsFetch)
+
+		if err = result.Error; err != nil {
+			return nil, err
+		}
+
+		go updateSecretCache(&g.secretService, secretsFetch, applicationID)
+		for _, s := range secretsFetch {
+			secrets = append(secrets, s)
+		}
+	}
+
+	dtoSecrets := make(map[string]string, keysLen)
+
+	for i := 0; i < len(secrets); i++ {
+		decrypted, err := g.encryptionService.Decrypt(secrets[i].Value)
+		if err != nil {
+			return nil, err
+		}
+
+		dtoSecrets[keys[i]] = decrypted
+	}
+
+	return dtoSecrets, err
 }
 
 func (g gormSecretService) Create(applicationID uint, key, value string) (models.Secret, error) {
@@ -128,10 +193,6 @@ func (g gormSecretService) Create(applicationID uint, key, value string) (models
 		return models.Secret{}, err
 	}
 
-	if len(g.cache) < g.cacheLimit {
-		g.cache[CacheKey{applicationID, key}] = secret
-	}
-
 	return secret, nil
 }
 
@@ -155,12 +216,15 @@ func (g gormSecretService) Update(applicationID uint, key, newKey, value string)
 		return models.Secret{}, err
 	}
 
-	// Invalidate the old cache and add the new value to the cache
-	cacheKey := CacheKey{applicationID, key}
-	if _, ok := g.cache[cacheKey]; ok {
-		delete(g.cache, cacheKey)
-		g.cache[CacheKey{applicationID, newKey}] = secret
-	}
+	go func() {
+		// Invalidate the old cache and add the new value to the cache
+		if _, ok := g.cache[applicationID][key]; ok {
+			g.mutex.Lock()
+			delete(g.cache[applicationID], key)
+			g.cache[applicationID][key] = secret
+			g.mutex.Unlock()
+		}
+	}()
 
 	return secret, nil
 }
@@ -168,14 +232,25 @@ func (g gormSecretService) Update(applicationID uint, key, newKey, value string)
 func (g gormSecretService) Delete(applicationID uint, key string) error {
 	secret := models.Secret{}
 
-	cacheKey := CacheKey{applicationID, key}
-
-	if _, ok := g.cache[cacheKey]; ok {
-		delete(g.cache, cacheKey)
+	if _, ok := g.cache[applicationID][key]; ok {
+		g.mutex.Lock()
+		delete(g.cache[applicationID], key)
+		g.mutex.Unlock()
 	}
 
 	if err := g.db.Where("key = ? AND application_id = ?", key, applicationID).Delete(&secret).Error; err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (g gormSecretService) InvalidateCache(applicationID uint) error {
+	g.mutex.Lock()
+	defer g.mutex.Unlock()
+
+	for key := range g.cache[applicationID] {
+		delete(g.cache[applicationID], key)
 	}
 
 	return nil

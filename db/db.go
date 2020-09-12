@@ -70,7 +70,9 @@ func ConnectToDatabaseProvider(provider string, dsn string) (_ *gorm.DB, err err
 // ConnectToPostgres - Connects to the running postgres database instance
 func connectToPostgreSQL(dsn string) (_ *gorm.DB, err error) {
 	config := &gorm.Config{}
-	dbConn, err = gorm.Open(postgres.New(postgres.Config{}), config)
+	dbConn, err = gorm.Open(postgres.New(postgres.Config{
+		DSN: dsn,
+	}), config)
 	return dbConn, err
 }
 

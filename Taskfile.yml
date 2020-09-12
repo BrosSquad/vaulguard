@@ -7,6 +7,6 @@ tasks:
       PORT: 4000
       STORE_SECRETS_IN_SQL: true
       MONGODB: mongodb://localhost:27017
-      DATABASE_PROVIDER: sqlite
+      DATABASE_PROVIDER: '{{.DEV_PROVIDER}}'
       DATABASE_DSN: '{{.DEV_DB}}'
-      APP_KEY: SEPF5aqu5lR8aMLf76Siq5KzTsHh6Uifh94+sE5oZ68=
+      APP_KEY: Ode1S8s63tz7Us5CIbJkjiI4GRWuQX2e9WKHeefCgHg=
