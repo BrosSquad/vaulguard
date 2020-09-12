@@ -3,14 +3,14 @@ package middleware
 import (
 	"strings"
 
-	"github.com/BrosSquad/vaulguard/services"
+	"github.com/BrosSquad/vaulguard/services/token"
 	"github.com/gofiber/fiber"
 )
 
 type TokenAuthConfig struct {
 	Header       string
 	HeaderPrefix string
-	TokenService services.TokenService
+	TokenService token.Service
 }
 
 func TokenAuthMiddleware(config TokenAuthConfig) func(*fiber.Ctx) {
@@ -24,9 +24,9 @@ func TokenAuthMiddleware(config TokenAuthConfig) func(*fiber.Ctx) {
 			return
 		}
 
-		token := authHeader[headerPrefixLen:]
+		t := authHeader[headerPrefixLen:]
 
-		app, ok := config.TokenService.Verify(token)
+		app, ok := config.TokenService.Verify(t)
 
 		if !ok {
 			ctx.Next(fiber.NewError(401, "Unauthorized"))

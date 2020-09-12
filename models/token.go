@@ -1,10 +1,23 @@
 package models
 
-import "gorm.io/gorm"
+import (
+	"time"
+)
 
 type Token struct {
-	gorm.Model
-	Value         []byte `gorm:"not null"`
-	ApplicationId uint   `gorm:"not null"`
+	ID            uint        `gorm:"primarykey"`
+	Value         []byte      `gorm:"not null"`
+	ApplicationId uint        `gorm:"not null"`
 	Application   Application `gorm:"foreignKey:ApplicationId"`
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
+type TokenDto struct {
+	ID            interface{}
+	Value         []byte
+	ApplicationId interface{}
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	Application   ApplicationDto
 }

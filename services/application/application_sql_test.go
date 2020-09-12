@@ -1,10 +1,11 @@
-package services
+package application
 
 import (
 	"os"
 	"testing"
 
 	"github.com/BrosSquad/vaulguard/models"
+	"github.com/BrosSquad/vaulguard/services"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -25,7 +26,23 @@ func TestApplicationService(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	service := NewApplicationService(conn)
+	service := NewSqlService(conn)
+
+	t.Run("ListApplications", func(t *testing.T) {
+		conn.Create(&models.Application{Name: "List App"})
+		service.List(func(dtos []models.ApplicationDto) error {
+			if len(dtos) != 1 {
+				t.Fatalf("Expected Length for DTOS: 1, got: %d", len(dtos))
+			}
+			dto := dtos[0]
+
+			if dto.Name != "List App" {
+				t.Fatalf("Expected application name: List App, Got: %s", dto.Name)
+			}
+
+			return nil
+		})
+	})
 
 	t.Run("CreateApplication", func(t *testing.T) {
 		app, err := service.Create("Test Application")
@@ -48,7 +65,7 @@ func TestApplicationService(t *testing.T) {
 			t.Fatalf("Error while inserting new application: %v", err)
 		}
 
-		if _, err := service.Create("Test Application"); err != ErrAlreadyExists {
+		if _, err := service.Create("Test Application"); err != services.ErrAlreadyExists {
 			t.Fatalf("Inserting 2 applications with same name successed: %v", err)
 		}
 	})

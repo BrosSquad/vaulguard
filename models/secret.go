@@ -6,3 +6,10 @@ type Secret struct {
 	ApplicationId uint   `gorm:"not null;uniqueIndex:application_id_key_idx;"`
 	Value         []byte `gorm:"not null;"`
 }
+
+type SecretDto struct {
+	ID            interface{}
+	Key           string
+	ApplicationId uint
+	Value         []byte
+}
