@@ -14,19 +14,31 @@ type gormSecretService struct {
 	db *gorm.DB
 }
 
-func NewGormSecretStorage(db *gorm.DB, service services.EncryptionService) Service {
+type GormSecretConfig struct {
+	Encryption services.EncryptionService
+	CacheSize  int
+	DB         *gorm.DB
+}
+
+func NewGormSecretStorage(config GormSecretConfig) Service {
+	cacheSize := config.CacheSize
+
+	if cacheSize == 0 {
+		cacheSize = 8191
+	}
+
 	return gormSecretService{
 		baseService: baseService{
 			mutex:             &sync.RWMutex{},
-			cache:             make(map[uint]map[string]models.Secret, 1024),
-			cacheLimit:        8192,
-			encryptionService: service,
+			cache:             [1024]map[string]models.Secret{},
+			cacheLimit:        cacheSize,
+			encryptionService: config.Encryption,
 		},
-		db: db,
+		db: config.DB,
 	}
 }
 
-func (g gormSecretService) Paginate(applicationID uint, page, perPage int) (map[string]string, error) {
+func (g gormSecretService) Paginate(applicationID interface{}, page, perPage int) (map[string]string, error) {
 	var secrets []models.Secret
 
 	if page < 0 {
@@ -57,10 +69,10 @@ func (g gormSecretService) Paginate(applicationID uint, page, perPage int) (map[
 	return secretsDto, nil
 }
 
-func (g gormSecretService) GetOne(applicationID uint, key string) (Secret, error) {
+func (g gormSecretService) GetOne(applicationID interface{}, key string) (Secret, error) {
 	secret := models.Secret{}
 
-	value, ok := g.cache[applicationID][key]
+	value, ok := g.cache[applicationID.(uint)][key]
 
 	if ok {
 		secret = value
@@ -84,17 +96,19 @@ func (g gormSecretService) GetOne(applicationID uint, key string) (Secret, error
 	}, nil
 }
 
-func updateSecretCache(g *baseService, secrets []models.Secret, applicationID uint) {
+func updateSecretCache(g *baseService, secrets []models.Secret, applicationID interface{}) {
 
 	if len(g.cache) >= g.cacheLimit {
 		return
 	}
 
-	if _, ok := g.cache[applicationID]; !ok {
-		g.cache[applicationID] = make(map[string]models.Secret, g.cacheLimit)
+	appId := uint(applicationID.(uint64))
+
+	if m := g.cache[appId]; m == nil {
+		g.cache[appId] = make(map[string]models.Secret, g.cacheLimit)
 	}
 
-	secretsMap := g.cache[applicationID]
+	secretsMap := g.cache[appId]
 	for _, s := range secrets {
 		if _, ok := secretsMap[s.Key]; !ok && len(secretsMap) < g.cacheLimit {
 			g.mutex.Lock()
@@ -105,13 +119,13 @@ func updateSecretCache(g *baseService, secrets []models.Secret, applicationID ui
 	}
 }
 
-func (g gormSecretService) Get(applicationID uint, keys []string) (_ map[string]string, err error) {
+func (g gormSecretService) Get(applicationID interface{}, keys []string) (_ map[string]string, err error) {
 	var keysToFetch []string
 	keysLen := len(keys)
 	secrets := make([]models.Secret, 0, keysLen)
 
 	for _, key := range keys {
-		if s, ok := g.cache[applicationID][key]; ok {
+		if s, ok := g.cache[applicationID.(uint)][key]; ok {
 			secrets = append(secrets, s)
 		} else {
 			keysToFetch = append(keysToFetch, key)
@@ -147,7 +161,7 @@ func (g gormSecretService) Get(applicationID uint, keys []string) (_ map[string]
 	return dtoSecrets, err
 }
 
-func (g gormSecretService) Create(applicationID uint, key, value string) (models.Secret, error) {
+func (g gormSecretService) Create(applicationID interface{}, key, value string) (models.Secret, error) {
 	var count int64
 	var secret models.Secret
 
@@ -167,7 +181,7 @@ func (g gormSecretService) Create(applicationID uint, key, value string) (models
 
 	secret.Key = key
 	secret.Value = encrypted
-	secret.ApplicationId = applicationID
+	secret.ApplicationId = applicationID.(uint)
 
 	if err := g.db.Create(&secret).Error; err != nil {
 		return models.Secret{}, err
@@ -176,10 +190,11 @@ func (g gormSecretService) Create(applicationID uint, key, value string) (models
 	return secret, nil
 }
 
-func (g gormSecretService) Update(applicationID uint, key, newKey, value string) (models.Secret, error) {
+func (g gormSecretService) Update(applicationID interface{}, key, newKey, value string) (models.Secret, error) {
 	secret := models.Secret{}
+	appId := applicationID.(uint)
 
-	if err := g.db.Where("key = ? AND application_id = ?", key, applicationID).Find(&secret).Error; err != nil {
+	if err := g.db.Where("key = ? AND application_id = ?", key, appId).Find(&secret).Error; err != nil {
 		return secret, err
 	}
 
@@ -198,10 +213,10 @@ func (g gormSecretService) Update(applicationID uint, key, newKey, value string)
 
 	go func() {
 		// Invalidate the old cache and add the new value to the cache
-		if _, ok := g.cache[applicationID][key]; ok {
+		if _, ok := g.cache[appId][key]; ok {
 			g.mutex.Lock()
-			delete(g.cache[applicationID], key)
-			g.cache[applicationID][key] = secret
+			delete(g.cache[appId], key)
+			g.cache[appId][key] = secret
 			g.mutex.Unlock()
 		}
 	}()
@@ -209,41 +224,27 @@ func (g gormSecretService) Update(applicationID uint, key, newKey, value string)
 	return secret, nil
 }
 
-func (g gormSecretService) Delete(applicationID uint, key string) error {
+func (g gormSecretService) Delete(applicationID interface{}, key string) error {
 	secret := models.Secret{}
+	appId := applicationID.(uint)
 
-	if _, ok := g.cache[applicationID][key]; ok {
+	if _, ok := g.cache[appId][key]; ok {
 		g.mutex.Lock()
-		delete(g.cache[applicationID], key)
+		delete(g.cache[appId], key)
 		g.mutex.Unlock()
 	}
 
-	if err := g.db.Where("key = ? AND application_id = ?", key, applicationID).Delete(&secret).Error; err != nil {
+	if err := g.db.Where("key = ? AND application_id = ?", key, appId).Delete(&secret).Error; err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (g gormSecretService) InvalidateCache(applicationID uint) error {
+func (g gormSecretService) InvalidateCache(applicationID interface{}) error {
 	g.mutex.Lock()
 	defer g.mutex.Unlock()
-
-	for key := range g.cache[applicationID] {
-		delete(g.cache[applicationID], key)
-	}
-
+	appId := applicationID.(uint)
+	g.cache[appId] = nil
 	return nil
 }
-
-//type mongoSecretService struct {
-//	client            *mongo.Client
-//	encryptionService EncryptionService
-//}
-
-//func NewMongoSecretStorage(client *mongo.Client, service EncryptionService) SecretService {
-//	return mongoSecretService{
-//		client:            client,
-//		encryptionService: service,
-//	}
-//}

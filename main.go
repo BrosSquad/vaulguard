@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"io"
 	"log"
 
 	"github.com/BrosSquad/vaulguard/config"
@@ -13,11 +14,22 @@ import (
 	"gorm.io/gorm"
 )
 
-func registerAPIHandlers(cfg *config.Config, client *mongo.Client, db *gorm.DB, app *fiber.App) {
+func registerAPIHandlers(ctx context.Context, cfg *config.Config, client *mongo.Database, db *gorm.DB, app *fiber.App) {
+	var tokenCollection *mongo.Collection
+	var secretCollection *mongo.Collection
+	var applicationCollection *mongo.Collection
 	apiV1 := app.Group("/api/v1")
 	encryptionService, err := services.NewEncryptionService(cfg.ApplicationKey)
-	tokenService := createTokenService(db, client, cfg)
 
+	if client != nil {
+		tokenCollection = client.Collection("tokens")
+		secretCollection = client.Collection("secrets")
+		applicationCollection = client.Collection("applications")
+	}
+
+	tokenService := createTokenService(ctx, db, tokenCollection, cfg)
+	_ = createApplicationService(db, applicationCollection, cfg)
+	secretService := createSecretService(db, secretCollection, encryptionService, cfg)
 
 	apiV1.Use(middleware.TokenAuthMiddleware(middleware.TokenAuthConfig{
 		TokenService: tokenService,
@@ -29,32 +41,33 @@ func registerAPIHandlers(cfg *config.Config, client *mongo.Client, db *gorm.DB, 
 		log.Fatalf("Cannot create encryption service: %v", err)
 	}
 
-	secretService := createSecretService(db, client, encryptionService, cfg)
 	handlers.RegisterSecretHandlers(secretService, apiV1.Group("/secrets"))
 }
 
 func main() {
+	var db *gorm.DB
+	var mongoClient *mongo.Client
+	var mongoDatabase *mongo.Database
+
+	var closer io.Closer
 	cfg, err := config.NewConfig()
 	if err != nil {
 		log.Fatalf("Error while creating app configuration: %v\n", err)
 	}
 
-	var db *gorm.DB
-	var mongoClient *mongo.Client
-	var dbClose func() error
-	var mongoClose func()
 	ctx, cancel := context.WithCancel(context.Background())
 
 	if cfg.StoreInSql {
-		db, dbClose = connectToRelationalDatabaseAndMigrate(&cfg)
-		defer dbClose()
+		db, closer = connectToRelationalDatabaseAndMigrate(&cfg)
+		defer closer.Close()
 	} else {
-		mongoClient, mongoClose = connectToMongo(ctx, &cfg)
-		defer mongoClose()
+		mongoClient, closer = connectToMongo(ctx, &cfg)
+		mongoDatabase = mongoClient.Database("vaulguard")
+		defer closer.Close()
 	}
 	app := fiber.New(&fiber.Settings{})
 
-	registerAPIHandlers(&cfg, mongoClient, db, app)
+	registerAPIHandlers(ctx, &cfg, mongoDatabase, db, app)
 
 	if err := app.Listen(cfg.Port); err != nil {
 		log.Fatalf("Error while starting Fiber Server: %v", err)

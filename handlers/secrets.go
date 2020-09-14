@@ -16,7 +16,7 @@ func RegisterSecretHandlers(service secret.Service, r fiber.Router) {
 
 func getSecrets(service secret.Service) func(*fiber.Ctx) {
 	return func(ctx *fiber.Ctx) {
-		app := ctx.Locals("application").(models.Application)
+		app := ctx.Locals("application").(models.ApplicationDto)
 		pageStr := ctx.Query("page", "1")
 		perPageStr := ctx.Query("perPage", "10")
 
@@ -47,7 +47,7 @@ func getSecrets(service secret.Service) func(*fiber.Ctx) {
 func getManySecrets(service secret.Service) func(*fiber.Ctx) {
 	return func(ctx *fiber.Ctx) {
 		var keys []string
-		app := ctx.Locals("application").(models.Application)
+		app := ctx.Locals("application").(models.ApplicationDto)
 		if err := ctx.BodyParser(&keys); err != nil {
 			ctx.Next(fiber.NewError(400, "Invalid Payload"))
 			return
@@ -66,7 +66,7 @@ func getManySecrets(service secret.Service) func(*fiber.Ctx) {
 
 func invalidateCache(service secret.Service) func(*fiber.Ctx) {
 	return func(ctx *fiber.Ctx) {
-		app := ctx.Locals("application").(models.Application)
+		app := ctx.Locals("application").(models.ApplicationDto)
 
 		if err := service.InvalidateCache(app.ID); err != nil {
 			ctx.Next(fiber.NewError(500, "Error while invalidating the cache"))

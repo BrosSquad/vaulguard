@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"io"
 	"log"
 
 	"github.com/BrosSquad/vaulguard/config"
@@ -10,9 +11,26 @@ import (
 	"gorm.io/gorm"
 )
 
-func connectToMongo(ctx context.Context, cfg *config.Config) (*mongo.Client, func()) {
+type mongoClose struct {
+	ctx    context.Context
+	client *mongo.Client
+}
+
+type gormClose struct {
+	db *gorm.DB
+}
+
+func (g gormClose) Close() error {
+	return db.Close()
+}
+
+func (m mongoClose) Close() error {
+	return m.client.Disconnect(m.ctx)
+}
+
+func connectToMongo(ctx context.Context, cfg *config.Config) (*mongo.Client, io.Closer) {
 	if cfg.StoreInSql {
-		return nil, func() {}
+		return nil, nil
 	}
 	client, err := db.ConnectToMongo(ctx, cfg.Mongo)
 
@@ -20,14 +38,10 @@ func connectToMongo(ctx context.Context, cfg *config.Config) (*mongo.Client, fun
 		log.Fatalf("Error while connecting to mongo db instance: %v\n", err)
 	}
 
-	return client, func() {
-		if err := client.Disconnect(ctx); err != nil {
-			log.Fatalf("Error while disconecting from mongodb instance: %v\n", err)
-		}
-	}
+	return client, mongoClose{ctx, client}
 }
 
-func connectToRelationalDatabaseAndMigrate(cfg *config.Config) (*gorm.DB, func() error) {
+func connectToRelationalDatabaseAndMigrate(cfg *config.Config) (*gorm.DB, io.Closer) {
 	conn, err := db.ConnectToDatabaseProvider(cfg.Database, cfg.DatabaseDSN)
 
 	if err != nil {
@@ -38,5 +52,5 @@ func connectToRelationalDatabaseAndMigrate(cfg *config.Config) (*gorm.DB, func()
 		log.Fatalf("Auto migration failed: %v", err)
 	}
 
-	return conn, db.Close
+	return conn, gormClose{conn}
 }

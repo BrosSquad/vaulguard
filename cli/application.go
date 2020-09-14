@@ -19,7 +19,7 @@ func applicationCommands() *cobra.Command {
 		Use:  "list",
 		Long: "List all applications in the database",
 		Run: func(cmd *cobra.Command, args []string) {
-			iterate := func(apps []models.Application) error {
+			iterate := func(apps []models.ApplicationDto) error {
 				for _, app := range apps {
 					fmt.Printf("ID: %d, Name: %s\n", app.ID, app.Name)
 				}

@@ -35,7 +35,11 @@ func TestNewGormSecretStorage(t *testing.T) {
 	key := make([]byte, 32)
 	_, _ = rand.Read(key)
 	encryptionService, _ := services.NewEncryptionService(key)
-	service := NewGormSecretStorage(conn, encryptionService)
+	service := NewGormSecretStorage(GormSecretConfig{
+		Encryption: encryptionService,
+		DB:         conn,
+		CacheSize:  32,
+	})
 
 	t.Run("CreateSecret", func(t *testing.T) {
 		value := "mysql://localhost:3306/database"
@@ -68,7 +72,10 @@ func TestNewGormSecretStorage(t *testing.T) {
 		}
 
 		for key, value := range secretsMap {
-			service.Create(application.ID, key, value)
+			_, err := service.Create(application.ID, key, value)
+			if err != nil {
+				t.Fatal(err)
+			}
 		}
 
 		secrets, err := service.Get(application.ID, []string{"SECRET_1", "SECRET_2", "SECRET_6"})
@@ -146,7 +153,11 @@ func BenchmarkSecretsInSqlite(b *testing.B) {
 	appKey := make([]byte, 32)
 	_, _ = rand.Read(appKey)
 	encryptionService, _ := services.NewEncryptionService(appKey)
-	service := NewGormSecretStorage(conn, encryptionService)
+	service := NewGormSecretStorage(GormSecretConfig{
+		Encryption: encryptionService,
+		DB:         conn,
+		CacheSize:  32,
+	})
 
 	secretsMap := make([]Secret, 10000)
 

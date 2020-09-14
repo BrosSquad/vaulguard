@@ -10,14 +10,23 @@ type sqlService struct {
 	db *gorm.DB
 }
 
-func NewSqlService(db *gorm.DB) Service {
-	return sqlService{db: db}
-}
+const size = 50
 
-func (a sqlService) List(cb func([]models.Application) error) error {
-	results := make([]models.Application, 0, 50)
-	err := a.db.FindInBatches(&results, 50, func(tx *gorm.DB, batch int) error {
-		return cb(results)
+func (s sqlService) List(cb func([]models.ApplicationDto) error) error {
+	results := make([]models.Application, 0, size)
+	appsDto := make([]models.ApplicationDto, 0, size)
+	err := s.db.FindInBatches(&results, size, func(tx *gorm.DB, batch int) error {
+		appsDto = appsDto[:0]
+		for _, result := range results {
+			appsDto = append(appsDto, models.ApplicationDto{
+				ID:        result.ID,
+				Name:      result.Name,
+				CreatedAt: result.CreatedAt,
+				UpdatedAt: result.UpdatedAt,
+			})
+		}
+		results = results[:0]
+		return cb(appsDto)
 	}).Error
 
 	if err != nil {
@@ -27,93 +36,127 @@ func (a sqlService) List(cb func([]models.Application) error) error {
 	return nil
 }
 
-func (a sqlService) GetByName(name string) (models.Application, error) {
-	var app models.Application
+func (s sqlService) GetByName(name string) (models.ApplicationDto, error) {
+	app := models.Application{}
 
-	if err := a.db.Where("name = ?", name).Limit(1).Find(&app).Error; err != nil {
-		return models.Application{}, err
+	if err := s.db.Where("name = ?", name).Limit(1).Find(&app).Error; err != nil {
+		return models.ApplicationDto{}, err
 	}
 
-	return app, nil
+	return models.ApplicationDto{
+		ID:        app.ID,
+		Name:      app.Name,
+		CreatedAt: app.CreatedAt,
+		UpdatedAt: app.UpdatedAt,
+	}, nil
 }
 
-func (a sqlService) Get(page, perPage int) ([]models.Application, error) {
-	var apps []models.Application
+func (s sqlService) Create(name string) (models.ApplicationDto, error) {
+	app := models.Application{}
+	var count int64
+	tx := s.db.Model(&app).Where("name = ?", name).Count(&count)
 
+	if tx.Error != nil {
+		return models.ApplicationDto{}, nil
+	}
+
+	if count > 0 {
+		return models.ApplicationDto{}, services.ErrAlreadyExists
+	}
+
+	app = models.Application{
+		Name: name,
+	}
+
+	tx = s.db.Create(&app)
+
+	if tx.Error != nil {
+		return models.ApplicationDto{}, tx.Error
+	}
+
+	return models.ApplicationDto{
+		ID:        app.ID,
+		Name:      app.Name,
+		CreatedAt: app.CreatedAt,
+		UpdatedAt: app.UpdatedAt,
+	}, nil
+}
+
+func (s sqlService) Get(page, perPage int) ([]models.ApplicationDto, error) {
+	apps := make([]models.Application, 0, perPage)
 	if page < 0 {
 		page *= -1
 	}
 
-	tx := a.db.Limit(perPage).Offset((page - 1) * perPage).Find(&apps)
+	tx := s.db.Limit(perPage).Offset((page - 1) * perPage).Find(&apps)
 
 	if tx.Error != nil {
-		return apps, tx.Error
+		return nil, tx.Error
 	}
 
-	return apps, nil
+	appsLen := len(apps)
+
+	appsDto := make([]models.ApplicationDto, appsLen)
+
+	for i := 0; i < appsLen; i++ {
+		appsDto[i] = models.ApplicationDto{
+			ID:        apps[i].ID,
+			Name:      apps[i].Name,
+			CreatedAt: apps[i].CreatedAt,
+			UpdatedAt: apps[i].UpdatedAt,
+		}
+	}
+
+	return appsDto, nil
 }
 
-func (a sqlService) GetOne(id uint) (models.Application, error) {
+func (s sqlService) GetOne(id interface{}) (models.ApplicationDto, error) {
 	app := models.Application{}
 
-	tx := a.db.Find(&app, id)
+	tx := s.db.Find(&app, id.(uint))
 
 	if tx.Error != nil {
-		return app, tx.Error
+		return models.ApplicationDto{}, tx.Error
 	}
 
-	return app, nil
+	return models.ApplicationDto{
+		ID:        app.ID,
+		Name:      app.Name,
+		CreatedAt: app.CreatedAt,
+		UpdatedAt: app.UpdatedAt,
+	}, nil
 }
 
-func (a sqlService) Create(name string) (models.Application, error) {
-	app := models.Application{}
-	var count int64
-	tx := a.db.Model(&app).Where("name = ?", name).Count(&count)
-
-	if tx.Error != nil {
-		return app, nil
-	}
-
-	if count > 0 {
-		return app, services.ErrAlreadyExists
-	}
-
-	application := models.Application{
-		Name: name,
-	}
-
-	tx = a.db.Create(&application)
-
-	if tx.Error != nil {
-		return models.Application{}, tx.Error
-	}
-
-	return application, nil
-}
-
-func (a sqlService) Update(id uint, name string) (models.Application, error) {
+func (s sqlService) Update(id interface{}, name string) (models.ApplicationDto, error) {
 	app := models.Application{}
 
-	a.db.Model(&app).Where("id = ?", id).Update("name", name)
-
-	tx := a.db.First(&app, id)
+	tx := s.db.First(&app, id)
 
 	if tx.Error != nil {
-		return app, tx.Error
+		return models.ApplicationDto{}, tx.Error
 	}
 
 	app.Name = name
 
-	tx = a.db.Save(&app)
+	tx = s.db.Save(&app)
 
 	if tx.Error != nil {
-		return models.Application{}, tx.Error
+		return models.ApplicationDto{}, tx.Error
 	}
 
-	return app, nil
+	return models.ApplicationDto{
+		ID:        app.ID,
+		Name:      app.Name,
+		CreatedAt: app.CreatedAt,
+		UpdatedAt: app.UpdatedAt,
+	}, nil
 }
 
-func (a sqlService) Delete(id uint) error {
+func (s sqlService) Delete(id interface{}) error {
 	app := models.Application{}
-	return a.db.Unscoped().Delete(&app, id).Error
+	return s.db.Unscoped().Delete(&app, id).Error
+}
+
+func NewSqlService(db *gorm.DB) Service {
+	return sqlService{db: db}
 }

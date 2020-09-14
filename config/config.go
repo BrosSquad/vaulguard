@@ -10,13 +10,13 @@ import (
 )
 
 type Config struct {
-	Debug            bool
-	ApplicationKey   []byte
-	StoreInSql bool
-	Database         string
-	DatabaseDSN      string
-	Mongo            string
-	Port             int
+	Debug          bool
+	ApplicationKey []byte
+	StoreInSql     bool
+	Database       string
+	DatabaseDSN    string
+	Mongo          string
+	Port           int
 }
 
 var errSkipEnv = errors.New("Skip Enviromental variables")

@@ -28,6 +28,22 @@ func TestApplicationService(t *testing.T) {
 
 	service := NewSqlService(conn)
 
+	t.Run("ListApplications", func(t *testing.T) {
+		conn.Create(&models.Application{Name: "List App"})
+		service.List(func(dtos []models.ApplicationDto) error {
+			if len(dtos) != 1 {
+				t.Fatalf("Expected Length for DTOS: 1, got: %d", len(dtos))
+			}
+			dto := dtos[0]
+
+			if dto.Name != "List App" {
+				t.Fatalf("Expected application name: List App, Got: %s", dto.Name)
+			}
+
+			return nil
+		})
+	})
+
 	t.Run("CreateApplication", func(t *testing.T) {
 		app, err := service.Create("Test Application")
 

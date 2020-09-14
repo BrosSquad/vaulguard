@@ -13,18 +13,18 @@ type Secret struct {
 }
 
 type Service interface {
-	Paginate(applicationID uint, page, perPage int) (map[string]string, error)
-	Get(applicationID uint, key []string) (map[string]string, error)
-	GetOne(applicationID uint, key string) (Secret, error)
-	Create(applicationID uint, key, value string) (models.Secret, error)
-	Update(applicationID uint, key, newKey, value string) (models.Secret, error)
-	Delete(applicationID uint, key string) error
-	InvalidateCache(applicationID uint) error
+	Paginate(applicationID interface{}, page, perPage int) (map[string]string, error)
+	Get(applicationID interface{}, key []string) (map[string]string, error)
+	GetOne(applicationID interface{}, key string) (Secret, error)
+	Create(applicationID interface{}, key, value string) (models.Secret, error)
+	Update(applicationID interface{}, key, newKey, value string) (models.Secret, error)
+	Delete(applicationID interface{}, key string) error
+	InvalidateCache(applicationID interface{}) error
 }
 
 type baseService struct {
 	mutex             *sync.RWMutex
 	cacheLimit        int
-	cache             map[uint]map[string]models.Secret
+	cache             [1024]map[string]models.Secret
 	encryptionService services.EncryptionService
 }
