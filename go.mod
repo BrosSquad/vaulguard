@@ -4,7 +4,7 @@ go 1.15
 
 require (
 	github.com/aws/aws-sdk-go v1.34.21 // indirect
-	github.com/gofiber/fiber v1.14.5
+	github.com/gofiber/fiber/v2 v2.0.1 // indirect
 	github.com/gofiber/utils v0.0.10
 	github.com/gorilla/schema v1.2.0 // indirect
 	github.com/jackc/pgproto3/v2 v2.0.4 // indirect
