@@ -9,7 +9,7 @@ import (
 	"github.com/BrosSquad/vaulguard/handlers"
 	"github.com/BrosSquad/vaulguard/middleware"
 	"github.com/BrosSquad/vaulguard/services"
-	"github.com/gofiber/fiber"
+	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/mongo"
 	"gorm.io/gorm"
 )
@@ -65,7 +65,7 @@ func main() {
 		mongoDatabase = mongoClient.Database("vaulguard")
 		defer closer.Close()
 	}
-	app := fiber.New(&fiber.Settings{})
+	app := fiber.New(fiber.Config{})
 
 	registerAPIHandlers(ctx, &cfg, mongoDatabase, db, app)
 
