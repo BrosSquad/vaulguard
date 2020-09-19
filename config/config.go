@@ -8,26 +8,6 @@ import (
 	"strings"
 )
 
-//debug: true
-//sql: true
-//http:
-// prefork: true
-// address: :4000
-//
-//keys:
-// private: ./keys/private
-// public: ./keys/public
-//
-//log:
-// level: info
-//
-//databases:
-//mongo:
-// uri: mongodb://localhost:27017
-//sql:
-// provider: postgres
-// dsn: 'host=localhost user=postgres pass=postgres dbname=vaulguard timezone=UTC'
-
 var (
 	ErrDatabaseProviderNotSupported = errors.New("database provider not supported")
 	ErrDatabaseProviderEmpty        = errors.New("database provider is required (sqlite, mysql, postgres)")
