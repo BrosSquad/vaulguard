@@ -10,24 +10,25 @@ import (
 )
 
 type Config struct {
-	Debug          bool
 	ApplicationKey []byte
-	StoreInSql     bool
 	Database       string
 	DatabaseDSN    string
 	Mongo          string
 	Port           string
+	StoreInSql     bool
+	Debug          bool
+	UsePrefork     bool
 }
 
 var (
-	errSkipEnv = errors.New("Skip Enviromental variables.")
-	ErrDatabaseProviderEmpty = errors.New("SQL Database provider is required.")
-	ErrDSNEmpty = errors.New("Database DSN(Data Source Name) is required.")
+	errSkipEnv                      = errors.New("Skip Enviromental variables.")
+	ErrDatabaseProviderEmpty        = errors.New("SQL Database provider is required.")
+	ErrDSNEmpty                     = errors.New("Database DSN(Data Source Name) is required.")
 	ErrDatabaseProviderNotSupported = errors.New("SQL Database provider is not supported.")
-	ErrAppKeyEmpty = errors.New("App Key is required.")
-	ErrAppKeyLength = errors.New("App key has to be 32 bytes in length.")
-	ErrAddressEmpty =  errors.New("Address is required.")
-	ErrMongoURIEmpty = errors.New("MongoURI is required.")
+	ErrAppKeyEmpty                  = errors.New("App Key is required.")
+	ErrAppKeyLength                 = errors.New("App key has to be 32 bytes in length.")
+	ErrAddressEmpty                 = errors.New("Address is required.")
+	ErrMongoURIEmpty                = errors.New("MongoURI is required.")
 )
 
 func checkDatabaseProvider(provider string) error {
@@ -47,12 +48,14 @@ func checkDatabaseProvider(provider string) error {
 func handleFlags(cfg *Config) error {
 	debug := flag.Bool("debug", false, "Debug mode - Command line arguments are only accepted in DEBUG mode")
 	skipEnv := flag.Bool("skip-env", false, "Skips Environmental variables and only uses command line flags")
-	port := flag.String("port", ":4000", "HTTP Server port")
 	storeSecretsInSQL := flag.Bool("store-in-sql", false, "Store data in SQL database")
+	usePrefork := flag.Bool("prefork", false, "Use go fiber's prefork feature")
+	address := flag.String("address", ":4000", "HTTP Server port")
 	mongo := flag.String("mongo", "", "MongoDB connection string")
 	dbProvider := flag.String("provider", "sqlite", "Relational database provider (sqlite, mysql, postgres)")
 	connectionString := flag.String("db-connection", "", "Relational database connection string")
 	appKey := flag.String("app-key", "", "Application encryption key")
+
 	flag.Parse()
 
 	if !*debug {
@@ -60,11 +63,12 @@ func handleFlags(cfg *Config) error {
 	}
 
 	cfg.Debug = *debug
-	cfg.Port = *port
+	cfg.Port = *address
 	cfg.StoreInSql = *storeSecretsInSQL
 	cfg.Mongo = *mongo
 	cfg.Database = *dbProvider
 	cfg.DatabaseDSN = *connectionString
+	cfg.UsePrefork = *usePrefork
 
 	if *appKey != "" {
 		key, err := base64.StdEncoding.DecodeString(*appKey)
@@ -153,6 +157,16 @@ func (c *Config) handleDatabase() error {
 	return nil
 }
 
+func (c *Config) handlePrefork() error {
+	prefork, err := strconv.ParseBool(os.Getenv("VAULGUARD_PREFORK"))
+
+	if err != nil {
+		c.UsePrefork = prefork
+	}
+
+	return nil
+}
+
 func NewConfig(skipFlags ...bool) (Config, error) {
 	config := Config{}
 
@@ -177,6 +191,10 @@ func NewConfig(skipFlags ...bool) (Config, error) {
 	}
 
 	if err := config.handleAppKey(); err != nil {
+		return Config{}, err
+	}
+
+	if err := config.handlePrefork(); err != nil {
 		return Config{}, err
 	}
 

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"github.com/BrosSquad/vaulguard/config"
 	"github.com/BrosSquad/vaulguard/services"
 	"github.com/BrosSquad/vaulguard/services/application"
 	"github.com/BrosSquad/vaulguard/services/secret"
@@ -11,8 +10,8 @@ import (
 	"gorm.io/gorm"
 )
 
-func createSecretService(db *gorm.DB, client *mongo.Collection, encryption services.EncryptionService, cfg *config.Config) secret.Service {
-	if cfg.StoreInSql {
+func createSecretService(db *gorm.DB, client *mongo.Collection, encryption services.EncryptionService, storeInSql bool) secret.Service {
+	if storeInSql {
 		return secret.NewGormSecretStorage(secret.GormSecretConfig{
 			Encryption: encryption,
 			DB:         db,
@@ -25,17 +24,17 @@ func createSecretService(db *gorm.DB, client *mongo.Collection, encryption servi
 	})
 }
 
-func createApplicationService(db *gorm.DB, client *mongo.Collection, cfg *config.Config) application.Service {
-	if cfg.StoreInSql {
+func createApplicationService(db *gorm.DB, client *mongo.Collection, storeInSql bool) application.Service {
+	if storeInSql {
 		return application.NewSqlService(db)
 	}
 	return application.NewMongoService(client)
 }
 
-func createTokenService(ctx context.Context, db *gorm.DB, client *mongo.Collection, cfg *config.Config) token.Service {
+func createTokenService(ctx context.Context, db *gorm.DB, client *mongo.Collection, storeInSql bool) token.Service {
 	var storage token.Storage
 
-	if cfg.StoreInSql {
+	if storeInSql {
 		storage = token.NewSqlStorage(db)
 	} else {
 		storage = token.NewMongoStorage(ctx, client)

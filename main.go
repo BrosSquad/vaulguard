@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/BrosSquad/vaulguard/db"
 	"io"
 	"log"
 
@@ -27,11 +28,11 @@ func registerAPIHandlers(ctx context.Context, cfg *config.Config, client *mongo.
 		applicationCollection = client.Collection("applications")
 	}
 
-	tokenService := createTokenService(ctx, db, tokenCollection, cfg)
-	_ = createApplicationService(db, applicationCollection, cfg)
-	secretService := createSecretService(db, secretCollection, encryptionService, cfg)
+	tokenService := createTokenService(ctx, db, tokenCollection, cfg.StoreInSql)
+	_ = createApplicationService(db, applicationCollection, cfg.StoreInSql)
+	secretService := createSecretService(db, secretCollection, encryptionService, cfg.StoreInSql)
 
-	apiV1.Use(middleware.TokenAuthMiddleware(middleware.TokenAuthConfig{
+	apiV1.Use(middleware.TokenAuth(middleware.TokenAuthConfig{
 		TokenService: tokenService,
 		Header:       "authorization",
 		HeaderPrefix: "token ",
@@ -45,11 +46,11 @@ func registerAPIHandlers(ctx context.Context, cfg *config.Config, client *mongo.
 }
 
 func main() {
-	var db *gorm.DB
+	var sqlDb *gorm.DB
 	var mongoClient *mongo.Client
 	var mongoDatabase *mongo.Database
-
 	var closer io.Closer
+
 	cfg, err := config.NewConfig()
 	if err != nil {
 		log.Fatalf("Error while creating app configuration: %v\n", err)
@@ -58,16 +59,20 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	if cfg.StoreInSql {
-		db, closer = connectToRelationalDatabaseAndMigrate(&cfg)
+		sqlDb, closer = connectToRelationalDatabaseAndMigrate(cfg.Database, cfg.DatabaseDSN)
 		defer closer.Close()
 	} else {
-		mongoClient, closer = connectToMongo(ctx, &cfg)
-		mongoDatabase = mongoClient.Database("vaulguard")
+		mongoClient, closer = connectToMongoAndMigrate(ctx, cfg.Mongo)
+		mongoDatabase = mongoClient.Database(db.MongoDBName)
 		defer closer.Close()
 	}
-	app := fiber.New(fiber.Config{})
 
-	registerAPIHandlers(ctx, &cfg, mongoDatabase, db, app)
+	app := fiber.New(fiber.Config{
+		Prefork:      cfg.UsePrefork,
+		ErrorHandler: handlers.Error,
+	})
+
+	registerAPIHandlers(ctx, &cfg, mongoDatabase, sqlDb, app)
 
 	if err := app.Listen(cfg.Port); err != nil {
 		log.Fatalf("Error while starting Fiber Server: %v", err)

@@ -53,7 +53,7 @@ func NewMongoClient(config MongoDBConfig) Service {
 		cacheSize = 8191
 	}
 
-	return mongoService{
+	return &mongoService{
 		baseService: baseService{
 			mutex:             &sync.RWMutex{},
 			cacheLimit:        cacheSize,
