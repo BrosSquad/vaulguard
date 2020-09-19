@@ -22,7 +22,6 @@ func Error(ctx *fiber.Ctx, err error) error {
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "Data not found!"})
 	}
-	
 
 	// Send custom error page
 	if err != nil {
