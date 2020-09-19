@@ -1,19 +1,5 @@
 package main
 
-import (
-	"context"
-	"github.com/BrosSquad/vaulguard/db"
-	"io"
-	"log"
-
-	"github.com/BrosSquad/vaulguard/config"
-	"github.com/BrosSquad/vaulguard/handlers"
-	"github.com/gofiber/fiber/v2"
-	"go.mongodb.org/mongo-driver/mongo"
-	"gorm.io/gorm"
-)
-
-
 func main() {
 	//var sqlDb *gorm.DB
 	//var mongoClient *mongo.Client
@@ -46,6 +32,5 @@ func main() {
 	//if err := app.Listen(cfg.Port); err != nil {
 	//	log.Fatalf("Error while starting Fiber Server: %v", err)
 	//}
-
-	cancel()
+	//cancel()
 }
