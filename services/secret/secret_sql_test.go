@@ -34,7 +34,7 @@ func TestNewGormSecretStorage(t *testing.T) {
 
 	key := make([]byte, 32)
 	_, _ = rand.Read(key)
-	encryptionService, _ := services.NewEncryptionService(key)
+	encryptionService, _ := services.NewSecretKeyEncryption(key)
 	service := NewGormSecretStorage(GormSecretConfig{
 		Encryption: encryptionService,
 		DB:         conn,
@@ -152,7 +152,7 @@ func BenchmarkSecretsInSqlite(b *testing.B) {
 
 	appKey := make([]byte, 32)
 	_, _ = rand.Read(appKey)
-	encryptionService, _ := services.NewEncryptionService(appKey)
+	encryptionService, _ := services.NewSecretKeyEncryption(appKey)
 	service := NewGormSecretStorage(GormSecretConfig{
 		Encryption: encryptionService,
 		DB:         conn,
