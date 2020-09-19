@@ -27,7 +27,7 @@ func NewGormSecretStorage(config GormSecretConfig) Service {
 		cacheSize = 8191
 	}
 
-	return gormSecretService{
+	return &gormSecretService{
 		baseService: baseService{
 			mutex:             &sync.RWMutex{},
 			cache:             [1024]map[string]models.Secret{},

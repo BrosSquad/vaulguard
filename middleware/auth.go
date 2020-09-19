@@ -13,7 +13,7 @@ type TokenAuthConfig struct {
 	TokenService token.Service
 }
 
-func TokenAuthMiddleware(config TokenAuthConfig) func(*fiber.Ctx) error {
+func TokenAuth(config TokenAuthConfig) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		authHeader := ctx.Get(config.Header)
 		headerPrefixLen := len(config.HeaderPrefix)
@@ -21,7 +21,7 @@ func TokenAuthMiddleware(config TokenAuthConfig) func(*fiber.Ctx) error {
 		if authHeader == "" ||
 			len(authHeader) < (headerPrefixLen+1) ||
 			strings.ToLower(authHeader[0:headerPrefixLen]) != config.HeaderPrefix {
-			return fiber.NewError(401, "Unauthorized")
+			return fiber.ErrUnauthorized
 		}
 
 		t := authHeader[headerPrefixLen:]
@@ -29,7 +29,7 @@ func TokenAuthMiddleware(config TokenAuthConfig) func(*fiber.Ctx) error {
 		app, ok := config.TokenService.Verify(t)
 
 		if !ok {
-			return fiber.NewError(401, "Unauthorized")
+			return fiber.ErrUnauthorized
 		}
 
 		ctx.Locals("application", app)

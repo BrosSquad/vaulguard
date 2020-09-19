@@ -23,12 +23,12 @@ func getSecrets(service secret.Service) func(*fiber.Ctx) error {
 		page, err := strconv.Atoi(pageStr)
 
 		if err != nil {
-			return fiber.NewError(400, "page query parameter is not a number")
+			return fiber.NewError(fiber.StatusBadRequest, "page query parameter is not a number")
 		}
 
 		perPage, err := strconv.Atoi(perPageStr)
 		if err != nil {
-			return fiber.NewError(400, "perPage query parameter is not a number")
+			return fiber.NewError(fiber.StatusBadRequest, "perPage query parameter is not a number")
 		}
 
 		secrets, err := service.Paginate(app.ID, page, perPage)
@@ -48,7 +48,7 @@ func getManySecrets(service secret.Service) func(*fiber.Ctx) error {
 		}{}
 		app := ctx.Locals("application").(models.ApplicationDto)
 		if err := ctx.QueryParser(&keysStruct); err != nil {
-			return fiber.NewError(400, "Invalid Payload")
+			return fiber.ErrBadRequest
 		}
 
 		secrets, err := service.Get(app.ID, keysStruct.keys)
@@ -65,7 +65,7 @@ func invalidateCache(service secret.Service) func(*fiber.Ctx) error {
 		app := ctx.Locals("application").(models.ApplicationDto)
 
 		if err := service.InvalidateCache(app.ID); err != nil {
-			return fiber.NewError(500, "Error while invalidating the cache")
+			return fiber.ErrInternalServerError
 		}
 		return ctx.SendStatus(204)
 	}
