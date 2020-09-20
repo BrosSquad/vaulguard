@@ -11,21 +11,19 @@ import (
 	"io"
 )
 
+const (
+	SecretKeyLength  = chacha20poly1305.KeySize
+	PublicKeyLength  = 32
+	PrivateKeyLength = 32
+)
+
 var (
 	ErrNotEnoughBytes = errors.New("not enough bytes read from crypto random source")
 	ErrKeyLength      = errors.New("key has to be 32 bytes long")
 )
 
-type SecretKeyGeneration interface {
-	GenerateEncryptionKey() ([]byte, error)
-}
-
-type PublicKeyCryptographyKeysGeneration interface {
-	GenerateKeyPairs() (*[32]byte, *[32]byte, error)
-}
-
-// EncryptionService - Interface for encryption and decryption
-type EncryptionService interface {
+// Encryption - Interface for encryption and decryption
+type Encryption interface {
 	Encrypt(dst, msg []byte) ([]byte, error)
 	EncryptString(msg string) ([]byte, error)
 	Decrypt(dst, msg []byte) ([]byte, error)
@@ -37,23 +35,8 @@ type secretKeyEncryption struct {
 	key    []byte
 }
 
-func (s secretKeyEncryption) GenerateEncryptionKey() ([]byte, error) {
-	key := make([]byte, chacha20poly1305.KeySize)
-	n, err := rand.Read(key)
-
-	if err != nil {
-		return nil, err
-	}
-
-	if n != chacha20poly1305.KeySize {
-		return nil, ErrNotEnoughBytes
-	}
-
-	return key, nil
-}
-
-// NewSecretKeyEncryption - Creates new instance of EncryptionService
-func NewSecretKeyEncryption(key []byte) (EncryptionService, error) {
+// NewSecretKeyEncryption - Creates new instance of Encryption
+func NewSecretKeyEncryption(key []byte) (Encryption, error) {
 	c, err := chacha20poly1305.NewX(key)
 
 	if err != nil {
@@ -88,7 +71,7 @@ func (s secretKeyEncryption) Encrypt(dst, msg []byte) ([]byte, error) {
 	}
 
 	if n != len(dst) {
-		return nil, errors.New("Cannot generate random nonce")
+		return nil, errors.New("cannot generate random nonce")
 	}
 
 	return s.cipher.Seal(dst, dst, msg, nil), nil
@@ -132,7 +115,7 @@ func readKey(out []byte, r io.Reader) error {
 	return nil
 }
 
-func NewPublicKeyEncryption(publicKey, privateKey io.Reader) (EncryptionService, error) {
+func NewPublicKeyEncryption(publicKey, privateKey io.Reader) (Encryption, error) {
 	var publicKeyBytes [32]byte
 	var privateKeyBytes [32]byte
 
@@ -155,17 +138,12 @@ type publicKeyEncryption struct {
 	publicKey  *[32]byte
 }
 
-func (p publicKeyEncryption) GenerateKeyPairs() (*[32]byte, *[32]byte, error) {
-	return box.GenerateKey(rand.Reader)
-}
-
 func (p publicKeyEncryption) Encrypt(dst, msg []byte) ([]byte, error) {
 	return box.SealAnonymous(dst, msg, p.publicKey, rand.Reader)
 }
 
 func (p publicKeyEncryption) EncryptString(msg string) ([]byte, error) {
-	dst := make([]byte, 0)
-	return p.Encrypt(dst, utils.GetBytes(msg))
+	return p.Encrypt(nil, utils.GetBytes(msg))
 }
 
 func (p publicKeyEncryption) Decrypt(dst, msg []byte) ([]byte, error) {

@@ -26,5 +26,5 @@ type baseService struct {
 	mutex             *sync.RWMutex
 	cacheLimit        int
 	cache             [1024]map[string]models.Secret
-	encryptionService services.EncryptionService
+	encryptionService services.Encryption
 }

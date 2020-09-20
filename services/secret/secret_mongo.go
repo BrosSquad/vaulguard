@@ -13,7 +13,7 @@ type mongoService struct {
 }
 
 type MongoDBConfig struct {
-	Encryption services.EncryptionService
+	Encryption services.Encryption
 	CacheSize  int
 	Collection *mongo.Collection
 }

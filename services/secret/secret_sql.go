@@ -15,7 +15,7 @@ type gormSecretService struct {
 }
 
 type GormSecretConfig struct {
-	Encryption services.EncryptionService
+	Encryption services.Encryption
 	CacheSize  int
 	DB         *gorm.DB
 }
@@ -24,7 +24,7 @@ func NewGormSecretStorage(config GormSecretConfig) Service {
 	cacheSize := config.CacheSize
 
 	if cacheSize == 0 {
-		cacheSize = 8191
+		cacheSize = 8192
 	}
 
 	return &gormSecretService{
@@ -58,7 +58,7 @@ func (g gormSecretService) Paginate(applicationID interface{}, page, perPage int
 	secretsDto := make(map[string]string, len(secrets))
 
 	for _, s := range secrets {
-		decryptedValue, err := g.encryptionService.Decrypt(s.Value)
+		decryptedValue, err := g.encryptionService.DecryptString(s.Value)
 		if err != nil {
 			return nil, err
 		}
@@ -71,7 +71,6 @@ func (g gormSecretService) Paginate(applicationID interface{}, page, perPage int
 
 func (g gormSecretService) GetOne(applicationID interface{}, key string) (Secret, error) {
 	secret := models.Secret{}
-
 	value, ok := g.cache[applicationID.(uint)][key]
 
 	if ok {
@@ -84,7 +83,7 @@ func (g gormSecretService) GetOne(applicationID interface{}, key string) (Secret
 		go updateSecretCache(&g.baseService, []models.Secret{secret}, applicationID)
 	}
 
-	decryptedValue, err := g.encryptionService.Decrypt(secret.Value)
+	decryptedValue, err := g.encryptionService.DecryptString(secret.Value)
 
 	if err != nil {
 		return Secret{}, err
@@ -102,7 +101,7 @@ func updateSecretCache(g *baseService, secrets []models.Secret, applicationID in
 		return
 	}
 
-	appId := uint(applicationID.(uint64))
+	appId := applicationID.(uint)
 
 	if m := g.cache[appId]; m == nil {
 		g.cache[appId] = make(map[string]models.Secret, g.cacheLimit)
@@ -150,7 +149,7 @@ func (g gormSecretService) Get(applicationID interface{}, keys []string) (_ map[
 	dtoSecrets := make(map[string]string, keysLen)
 
 	for i := 0; i < len(secrets); i++ {
-		decrypted, err := g.encryptionService.Decrypt(secrets[i].Value)
+		decrypted, err := g.encryptionService.DecryptString(secrets[i].Value)
 		if err != nil {
 			return nil, err
 		}

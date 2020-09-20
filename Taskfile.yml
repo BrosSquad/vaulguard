@@ -2,12 +2,4 @@ version: '3'
 tasks:
   development:
     cmds:
-      - go run .
-    env:
-      VAULGUARD_ADDRESS: ':4000'
-      VAULGUARD_STORE_IN_SQL: true
-      VAULGUARD_MONGODB: mongodb://localhost:27017
-      VAULGUARD_DATABASE_PROVIDER: '{{.DEV_PROVIDER}}'
-      VAULGUARD_DATABASE_DSN: '{{.DEV_DB}}'
-      VAULGUARD_APP_KEY: Ode1S8s63tz7Us5CIbJkjiI4GRWuQX2e9WKHeefCgHg=
-
+      - go run . -config=./config.yml

@@ -5,8 +5,9 @@ http:
   address: :4000
 
 keys:
-  private: ./keys/private
-  public: ./keys/public
+  private: ./keys/private.key
+  public: ./keys/public.key
+  secret: ./keys/secret.key
 
 log:
   level: info
@@ -16,5 +17,5 @@ databases:
     uri: mongodb://localhost:27017
   sql:
     provider: postgres
-    dsn: 'host=localhost user=postgres pass=postgres dbname=vaulguard timezone=UTC'
+    dsn: 'host=localhost user=malusev password=M@lusevd998 dbname=vaulguard timezone=UTC'
 
