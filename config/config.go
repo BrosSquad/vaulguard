@@ -26,6 +26,7 @@ type (
 	Keys struct {
 		Private string `yaml:"private,omitempty"`
 		Public  string `yaml:"public,omitempty"`
+		Secret  string `yaml:"secret,omitempty"`
 	}
 	Logging struct {
 		Level string `yaml:"level,omitempty"`

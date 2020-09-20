@@ -213,7 +213,6 @@ databases:
 		asserts.True(errors.Is(err, ErrAddressEmpty))
 	})
 
-
 	t.Run("PrivateKeyEmpty", func(t *testing.T) {
 		asserts := assert.New(t)
 		configStr := `
@@ -245,7 +244,6 @@ databases:
 		asserts.Nil(config)
 		asserts.True(errors.Is(err, ErrPrivateKeyEmpty))
 	})
-
 
 	t.Run("PrivateKeyEmpty", func(t *testing.T) {
 		asserts := assert.New(t)

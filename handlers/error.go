@@ -12,7 +12,9 @@ func Error(ctx *fiber.Ctx, err error) error {
 	code := fiber.StatusInternalServerError
 
 	if e, ok := err.(*fiber.Error); ok {
-		code = e.Code
+		return ctx.Status(e.Code).JSON(fiber.Map{
+			"message": e.Message,
+		})
 	}
 
 	if errors.Is(err, services.ErrAlreadyExists) {
@@ -23,12 +25,5 @@ func Error(ctx *fiber.Ctx, err error) error {
 		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "Data not found!"})
 	}
 
-	// Send custom error page
-	if err != nil {
-		// In case the SendFile fails
-		return ctx.Status(code).JSON(fiber.Map{"message": "An error has occurred!"})
-	}
-
-	// Return from handler
-	return nil
+	return ctx.Status(code).JSON(fiber.Map{"message": "An error has occurred!"})
 }

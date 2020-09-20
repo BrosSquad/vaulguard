@@ -10,7 +10,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func createSecretService(db *gorm.DB, client *mongo.Collection, encryption services.EncryptionService, storeInSql bool) secret.Service {
+func createSecretService(db *gorm.DB, client *mongo.Collection, encryption services.Encryption, storeInSql bool) secret.Service {
 	if storeInSql {
 		return secret.NewGormSecretStorage(secret.GormSecretConfig{
 			Encryption: encryption,
