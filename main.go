@@ -6,6 +6,7 @@ import (
 	"github.com/BrosSquad/vaulguard/config"
 	"github.com/BrosSquad/vaulguard/db"
 	"github.com/BrosSquad/vaulguard/handlers"
+	vaulguardlog "github.com/BrosSquad/vaulguard/log"
 	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/mongo"
 	"gorm.io/gorm"
@@ -57,10 +58,12 @@ func main() {
 		log.Fatalf("Error while creating application configuration: %v\n", err)
 	}
 
+	logger := vaulguardlog.NewVaulGuardLogger(vaulguardlog.GetLogLevel(cfg.Logging.Level), cfg.UseConsole)
+
 	key, err := getKeys(cfg)
 
 	if err != nil {
-		log.Fatalf("Error while loading application keys: %v", err)
+		logger.Fatalf(err, "Error while loading application keys\n")
 	}
 
 	cfg.ApplicationKey = key
@@ -68,10 +71,16 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	if cfg.UseSql {
-		sqlDb, closer = connectToRelationalDatabaseAndMigrate(cfg.Databases.SQL.Provider, cfg.Databases.SQL.DSN)
+		sqlDb, closer, err = connectToRelationalDatabaseAndMigrate(logger, cfg)
+		if err != nil {
+			logger.Fatalf(err, "Error while connecting to database\n")
+		}
 		defer closer.Close()
 	} else {
-		mongoClient, closer = connectToMongoAndMigrate(ctx, cfg.Databases.Mongo.URI)
+		mongoClient, closer, err = connectToMongoAndMigrate(ctx, cfg.Databases.Mongo.URI)
+		if err != nil {
+			logger.Fatalf(err, "Error while connecting to MongoDB\n")
+		}
 		mongoDatabase = mongoClient.Database(db.MongoDBName)
 		defer closer.Close()
 	}
@@ -84,7 +93,7 @@ func main() {
 	registerAPIHandlers(ctx, cfg, mongoDatabase, sqlDb, app)
 
 	if err := app.Listen(cfg.Http.Address); err != nil {
-		log.Fatalf("Error while starting http server: %v", err)
+		logger.Fatalf(err, "Error while starting http server\n")
 	}
 
 	cancel()

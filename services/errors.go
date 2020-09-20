@@ -2,4 +2,4 @@ package services
 
 import "errors"
 
-var ErrAlreadyExists = errors.New("Model already exists.")
+var ErrAlreadyExists = errors.New("model already exists")

@@ -2,7 +2,11 @@ package db
 
 import (
 	"context"
+	"errors"
+	"github.com/BrosSquad/vaulguard/log"
 	"go.mongodb.org/mongo-driver/bson"
+	"gorm.io/gorm/logger"
+	"strings"
 	"time"
 
 	"github.com/BrosSquad/vaulguard/models"
@@ -14,7 +18,18 @@ import (
 )
 
 var (
-	dbConn *gorm.DB
+	dbConn                          *gorm.DB
+	ErrDatabaseProviderNotSupported = errors.New("database provider not supported (sqlite, postgres, mysql)")
+)
+
+type (
+	Provider   int
+	GormConfig struct {
+		LogLevel    log.DBLevel
+		Logger      logger.Writer
+		SQLProvider Provider
+		DSN         string
+	}
 )
 
 const (
@@ -22,6 +37,10 @@ const (
 	TokensMongoCollection      = "tokens"
 	ApplicationMongoCollection = "applications"
 	SecretsMongoCollection     = "secrets"
+
+	PostgreSQL Provider = iota + 1
+	MySQL
+	SQLite
 )
 
 // ConnectToMongo - Connects to the running mongo database instance
@@ -114,39 +133,65 @@ func SqlMigrate() error {
 	return dbConn.AutoMigrate(dst...)
 }
 
+func GetDatabaseProvider(provider string) (Provider, error) {
+
+	providerLower := strings.ToLower(provider)
+
+	switch providerLower {
+	case "mysql":
+		return MySQL, nil
+	case "postgres":
+		return PostgreSQL, nil
+	case "sqlite":
+		return SQLite, nil
+
+	}
+	return 0, ErrDatabaseProviderNotSupported
+}
+
 // ConnectToDatabaseProvider - Connects to different database providers supported by the application
 // Supported providers:
 // 1. PostgreSQL
 // 2. MySQL
 // 3. SQLite
-func ConnectToDatabaseProvider(provider string, dsn string) (_ *gorm.DB, err error) {
-	switch provider {
-	case "postgres":
-		return connectToPostgreSQL(dsn)
-	case "mysql":
-		return connectToMySQL(dsn)
-	case "sqlite":
-		return connectToSQLite(dsn)
+func ConnectToDatabaseProvider(config GormConfig) (_ *gorm.DB, err error) {
+	gormConfig := &gorm.Config{
+		PrepareStmt: true,
+	}
+
+	if config.Logger != nil {
+		gormConfig.Logger = logger.New(config.Logger, logger.Config{
+			Colorful: true,
+			LogLevel: logger.LogLevel(config.LogLevel),
+		})
+	}
+
+	switch config.SQLProvider {
+	case PostgreSQL:
+		return connectToPostgreSQL(config.DSN, gormConfig)
+	case MySQL:
+		return connectToMySQL(config.DSN, gormConfig)
+	case SQLite:
+		return connectToSQLite(config.DSN, gormConfig)
 	}
 
 	return nil, nil
 }
 
 // ConnectToPostgres - Connects to the running postgres database instance
-func connectToPostgreSQL(dsn string) (_ *gorm.DB, err error) {
-	config := &gorm.Config{}
+func connectToPostgreSQL(dsn string, config *gorm.Config) (_ *gorm.DB, err error) {
 	dbConn, err = gorm.Open(postgres.New(postgres.Config{
 		DSN: dsn,
 	}), config)
 	return dbConn, err
 }
 
-func connectToMySQL(dsn string) (_ *gorm.DB, err error) {
+func connectToMySQL(dsn string, config *gorm.Config) (_ *gorm.DB, err error) {
 	return dbConn, nil
 }
 
-func connectToSQLite(dsn string) (_ *gorm.DB, err error) {
-	dbConn, err = gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+func connectToSQLite(dsn string, config *gorm.Config) (_ *gorm.DB, err error) {
+	dbConn, err = gorm.Open(sqlite.Open(dsn), config)
 	return dbConn, err
 }
 

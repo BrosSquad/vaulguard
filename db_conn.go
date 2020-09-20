@@ -2,12 +2,13 @@ package main
 
 import (
 	"context"
-	"io"
-	"log"
-
-	"github.com/BrosSquad/vaulguard/db"
+	"github.com/BrosSquad/vaulguard/log"
 	"go.mongodb.org/mongo-driver/mongo"
 	"gorm.io/gorm"
+	"io"
+
+	"github.com/BrosSquad/vaulguard/config"
+	"github.com/BrosSquad/vaulguard/db"
 )
 
 type mongoClose struct {
@@ -27,30 +28,40 @@ func (m mongoClose) Close() error {
 	return m.client.Disconnect(m.ctx)
 }
 
-func connectToMongoAndMigrate(ctx context.Context, mongoURI string) (*mongo.Client, io.Closer) {
+func connectToMongoAndMigrate(ctx context.Context, mongoURI string) (*mongo.Client, io.Closer, error) {
 	client, err := db.ConnectToMongo(ctx, mongoURI)
 
 	if err != nil {
-		log.Fatalf("Error while connecting to mongo db instance: %v\n", err)
+		return nil, nil, err
 	}
 
 	if err := db.MongoCreateCollections(ctx, client); err != nil {
-		log.Fatalf("Error while creating mongo collections: %v\n", err)
+		return nil, nil, err
 	}
 
-	return client, &mongoClose{ctx, client}
+	return client, &mongoClose{ctx, client}, nil
 }
 
-func connectToRelationalDatabaseAndMigrate(database, dsn string) (*gorm.DB, io.Closer) {
-	conn, err := db.ConnectToDatabaseProvider(database, dsn)
+func connectToRelationalDatabaseAndMigrate(logger *log.Logger, cfg *config.Config) (*gorm.DB, io.Closer, error) {
+	provider, err := db.GetDatabaseProvider(cfg.Databases.SQL.Provider)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	conn, err := db.ConnectToDatabaseProvider(db.GormConfig{
+		LogLevel:    log.GetDbLogLevel(cfg.Logging.Level),
+		Logger:      logger,
+		SQLProvider: provider,
+		DSN:         cfg.Databases.SQL.DSN,
+	})
 
 	if err != nil {
-		log.Fatalf("Error while connection to PostgreSQL: %v\n", err)
+		return nil, nil, err
 	}
 
 	if err := db.SqlMigrate(); err != nil {
-		log.Fatalf("Auto migration failed: %v", err)
+		return nil, nil, err
 	}
 
-	return conn, &gormClose{conn}
+	return conn, &gormClose{conn}, nil
 }
