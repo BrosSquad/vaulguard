@@ -41,7 +41,7 @@ func registerAPIHandlers(ctx context.Context, cfg *config.Config, client *mongo.
 		HeaderPrefix: "token ",
 	}))
 
-	//apiV1.Use()
+	// TODO: Add JWT authentication
 
 	handlers.RegisterSecretHandlers(secretService, secretsGroup)
 	handlers.RegisterApplicationHandlers(applicationService, apiV1.Group("/applications"))

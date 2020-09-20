@@ -5,17 +5,15 @@ import (
 	"github.com/go-yaml/yaml"
 	"io"
 	"io/ioutil"
-	"strings"
 )
 
 var (
-	ErrDatabaseProviderNotSupported = errors.New("database provider not supported")
-	ErrDatabaseProviderEmpty        = errors.New("database provider is required (sqlite, mysql, postgres)")
-	ErrDSNEmpty                     = errors.New("DSN is required")
-	ErrMongoURIEmpty                = errors.New("mongo URI is required")
-	ErrAddressEmpty                 = errors.New("http address is required")
-	ErrPrivateKeyEmpty              = errors.New("private key is required")
-	ErrPublicKeyEmpty               = errors.New("public key is required")
+	ErrDatabaseProviderEmpty = errors.New("database provider is required")
+	ErrDSNEmpty              = errors.New("DSN is required")
+	ErrMongoURIEmpty         = errors.New("mongo URI is required")
+	ErrAddressEmpty          = errors.New("http address is required")
+	ErrPrivateKeyEmpty       = errors.New("private key is required")
+	ErrPublicKeyEmpty        = errors.New("public key is required")
 )
 
 type (
@@ -46,6 +44,7 @@ type (
 
 	Config struct {
 		ApplicationKey []byte    `yaml:"-"`
+		UseConsole     bool      `yaml:"console,omitempty"`
 		Debug          bool      `yaml:"debug,omitempty"`
 		UseSql         bool      `yaml:"sql,omitempty"`
 		Http           Http      `yaml:"http"`
@@ -55,31 +54,13 @@ type (
 	}
 )
 
-func checkDatabaseProvider(provider string) error {
-	if provider == "" {
-		return ErrDatabaseProviderEmpty
-	}
-
-	providers := [3]string{"postgres", "mysql", "sqlite"}
-
-	provider = strings.ToLower(provider)
-
-	for _, p := range providers {
-		if p == provider {
-			return nil
-		}
-	}
-
-	return ErrDatabaseProviderNotSupported
-}
-
 func (c Config) Validate() error {
 	if c.UseSql {
 		if c.Databases.SQL.DSN == "" {
 			return ErrDSNEmpty
 		}
-		if err := checkDatabaseProvider(c.Databases.SQL.Provider); err != nil {
-			return err
+		if c.Databases.SQL.Provider == "" {
+			return ErrDatabaseProviderEmpty
 		}
 	} else {
 		if c.Databases.Mongo.URI == "" {

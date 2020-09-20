@@ -9,6 +9,7 @@ require (
 	github.com/gofiber/utils v0.0.10
 	github.com/jackc/pgproto3/v2 v2.0.4 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
+	github.com/rs/zerolog v1.20.0
 	github.com/spf13/cobra v1.0.0
 	github.com/stretchr/testify v1.6.1
 	go.mongodb.org/mongo-driver v1.4.1
