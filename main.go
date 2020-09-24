@@ -92,6 +92,8 @@ func main() {
 
 	registerAPIHandlers(ctx, cfg, mongoDatabase, sqlDb, app)
 
+	go memoryUsage(ctx, logger)
+
 	if err := app.Listen(cfg.Http.Address); err != nil {
 		logger.Fatalf(err, "Error while starting http server\n")
 	}

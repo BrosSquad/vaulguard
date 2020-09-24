@@ -37,7 +37,7 @@ type (
 		DSN      string `yaml:"dsn,omitempty"`
 	}
 
-	databases struct {
+	Databases struct {
 		Mongo Mongo `yaml:"mongo"`
 		SQL   Sql   `yaml:"sql"`
 	}
@@ -50,7 +50,7 @@ type (
 		Http           Http      `yaml:"http"`
 		Keys           Keys      `yaml:"keys"`
 		Logging        Logging   `yaml:"log"`
-		Databases      databases `yaml:"databases"`
+		Databases      Databases `yaml:"databases"`
 	}
 )
 
