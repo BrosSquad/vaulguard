@@ -3,3 +3,16 @@ tasks:
   development:
     cmds:
       - go run . -config=./config.yml
+  build:
+    cmds:
+      - go build -v -o bin/vaulguard{{.exeExt}} .
+  test:
+    cmds:
+      - go test ./...
+
+  format:
+    cmds:
+      - go fmt ./...
+  vet:
+    cmds:
+      - go vet ./...
