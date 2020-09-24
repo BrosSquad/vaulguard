@@ -1,11 +1,36 @@
-version: '3.8'
+version: '3.3'
 
 services:
+  web:
+    build: .
+    volumes:
+      - ./config.yml:/etc/vaulguard/config.yml
+      - ./keys:/keys
+    ports:
+      - '4000:8000'
+    restart: unless-stopped
+    networks:
+      - vaulguard
   mongo:
     image: mongo:4.4.0-bionic
     restart: unless-stopped
+    networks:
+      - vaulguard
   postgres:
+    image: postgres:12.4-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: vaulguard
+      PGDATA: /var/lib/postgresql/data/pgdata
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - vaulguard:/var/lib/postgresql/data/pgdata
+    networks:
+      - vaulguard
 
 volumes:
+  vaulguard:
 
 networks:
+  vaulguard:
+    driver: bridge

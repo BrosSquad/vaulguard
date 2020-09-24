@@ -3,8 +3,9 @@ package config
 import (
 	"bytes"
 	"errors"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestConfig(t *testing.T) {
@@ -146,7 +147,6 @@ databases:
 
 		asserts.NotNil(err)
 		asserts.Nil(config)
-		asserts.True(errors.Is(err, ErrDatabaseProviderNotSupported))
 	})
 
 	t.Run("MongoURIEmpty", func(t *testing.T) {

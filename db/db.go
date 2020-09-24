@@ -3,11 +3,12 @@ package db
 import (
 	"context"
 	"errors"
+	"strings"
+	"time"
+
 	"github.com/BrosSquad/vaulguard/log"
 	"go.mongodb.org/mongo-driver/bson"
 	"gorm.io/gorm/logger"
-	"strings"
-	"time"
 
 	"github.com/BrosSquad/vaulguard/models"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -67,11 +68,15 @@ func MongoCreateCollections(ctx context.Context, client *mongo.Client) error {
 	database := client.Database(MongoDBName)
 
 	if err := database.CreateCollection(ctx, TokensMongoCollection); err != nil {
-		return err
+		if _, ok := err.(mongo.CommandError); !ok {
+			return err
+		}
 	}
 
 	if err := database.CreateCollection(ctx, ApplicationMongoCollection); err != nil {
-		return err
+		if _, ok := err.(mongo.CommandError); !ok {
+			return err
+		}
 	}
 
 	applicationIndexes := []mongo.IndexModel{
@@ -90,7 +95,9 @@ func MongoCreateCollections(ctx context.Context, client *mongo.Client) error {
 	}
 
 	if err := database.CreateCollection(ctx, SecretsMongoCollection); err != nil {
-		return err
+		if _, ok := err.(mongo.CommandError); !ok {
+			return err
+		}
 	}
 
 	secretIndexes := []mongo.IndexModel{

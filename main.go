@@ -3,6 +3,11 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
+	"io"
+	"log"
+	"os"
+
 	"github.com/BrosSquad/vaulguard/config"
 	"github.com/BrosSquad/vaulguard/db"
 	"github.com/BrosSquad/vaulguard/handlers"
@@ -10,12 +15,9 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/mongo"
 	"gorm.io/gorm"
-	"io"
-	"log"
-	"os"
 )
 
-func createConfig(configPath string) (*config.Config, error) {
+func createConfig(configPath string, port int) (*config.Config, error) {
 	var err error
 
 	configPath, err = getAbsolutePath(configPath)
@@ -40,6 +42,10 @@ func createConfig(configPath string) (*config.Config, error) {
 		return nil, err
 	}
 
+	if port != 0 {
+		cfg.Http.Address = fmt.Sprintf(":%d", port)
+	}
+
 	return cfg, err
 }
 
@@ -50,9 +56,11 @@ func main() {
 	var closer io.Closer
 
 	configPath := flag.String("config", "./config.yml", "Path to config file")
+	port := flag.Int("port", 0, "Default port, overrides usage from config")
+
 	flag.Parse()
 
-	cfg, err := createConfig(*configPath)
+	cfg, err := createConfig(*configPath, *port)
 
 	if err != nil {
 		log.Fatalf("Error while creating application configuration: %v\n", err)
