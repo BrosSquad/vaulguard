@@ -2,13 +2,13 @@ package main
 
 import (
 	"context"
-	"github.com/BrosSquad/vaulguard/log"
 	"go.mongodb.org/mongo-driver/mongo"
 	"gorm.io/gorm"
 	"io"
 
 	"github.com/BrosSquad/vaulguard/config"
 	"github.com/BrosSquad/vaulguard/db"
+	"github.com/BrosSquad/vaulguard/log"
 )
 
 type mongoClose struct {
