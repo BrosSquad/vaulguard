@@ -8,10 +8,12 @@ import (
 	"log"
 	"os"
 
+	"github.com/BrosSquad/vaulguard/api"
 	"github.com/BrosSquad/vaulguard/config"
 	"github.com/BrosSquad/vaulguard/db"
 	"github.com/BrosSquad/vaulguard/handlers"
 	vaulguardlog "github.com/BrosSquad/vaulguard/log"
+	"github.com/BrosSquad/vaulguard/services"
 	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/mongo"
 	"gorm.io/gorm"
@@ -53,6 +55,10 @@ func main() {
 	var sqlDb *gorm.DB
 	var mongoClient *mongo.Client
 	var mongoDatabase *mongo.Database
+	var tokenCollection *mongo.Collection
+	var secretCollection *mongo.Collection
+	var applicationCollection *mongo.Collection
+
 	var closer io.Closer
 
 	configPath := flag.String("config", "./config.yml", "Path to config file")
@@ -90,7 +96,16 @@ func main() {
 			logger.Fatalf(err, "Error while connecting to MongoDB\n")
 		}
 		mongoDatabase = mongoClient.Database(db.MongoDBName)
+		tokenCollection = mongoDatabase.Collection("tokens")
+		secretCollection = mongoDatabase.Collection("secrets")
+		applicationCollection = mongoDatabase.Collection("applications")
 		defer closer.Close()
+	}
+
+	encryptionService, err := services.NewSecretKeyEncryption(cfg.ApplicationKey)
+
+	if err != nil {
+		logger.Fatalf(err, "Error while creating encryption service\n")
 	}
 
 	app := fiber.New(fiber.Config{
@@ -98,7 +113,20 @@ func main() {
 		ErrorHandler: handlers.Error,
 	})
 
-	registerAPIHandlers(ctx, cfg, mongoDatabase, sqlDb, app)
+	fiberAPI := api.Fiber{
+		Ctx:                   ctx,
+		Cfg:                   cfg,
+		App:                   app.Group("/api/v1"),
+		TokenCollection:       tokenCollection,
+		SecretCollection:      secretCollection,
+		ApplicationCollection: applicationCollection,
+		SecretService:         createSecretService(sqlDb, secretCollection, encryptionService, cfg.UseSql),
+		ApplicationService:    createApplicationService(sqlDb, applicationCollection, cfg.UseSql),
+		TokenService:          createTokenService(ctx, sqlDb, tokenCollection, cfg.UseSql),
+		Logger:                logger,
+	}
+
+	fiberAPI.RegisterHandlers()
 
 	go memoryUsage(ctx, logger)
 

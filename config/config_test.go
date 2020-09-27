@@ -118,37 +118,6 @@ databases:
 		asserts.True(errors.Is(err, ErrDatabaseProviderEmpty))
 	})
 
-	t.Run("UseSQLProviderEmpty", func(t *testing.T) {
-		asserts := assert.New(t)
-		configStr := `
-debug: true
-sql: true
-http:
-  prefork: true
-  address: :4000
-
-keys:
-  private: ./keys/private
-  public: ./keys/public
-
-log:
-  level: info
-
-databases:
-  mongo:
-    uri: mongodb://localhost:27017
-  sql:
-    provider: not-supported
-    dsn: 'host=localhost user=postgres pass=postgres dbname=vaulguard timezone=UTC'
-`
-		buffer := bytes.NewBufferString(configStr)
-
-		config, err := NewConfig(buffer)
-
-		asserts.NotNil(err)
-		asserts.Nil(config)
-	})
-
 	t.Run("MongoURIEmpty", func(t *testing.T) {
 		asserts := assert.New(t)
 		configStr := `
