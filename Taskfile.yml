@@ -5,11 +5,22 @@ tasks:
       - go run . -config=./config.yml
   build:
     cmds:
-      - go build -v -o bin/vaulguard{{.exeExt}} .
+      - CGO_ENABLED=0 go build -v -o bin/vaulguard{{.exeExt}} .
   test:
     cmds:
       - go test ./...
-
+  docker-test:
+    cmds:
+      - docker-compose run  --use-aliases -d mongo
+      - docker-compose run  --use-aliases -d db
+      - docker run -it --rm --network vaulguard_vaulguard -e VAULGUARD_MONGO_TESTING="mongodb://mongo:27017/" -v {{.PWD}}:/vaulguard -v vaulguard_vaulguard:/go/pkg -w /vaulguard golang:1.15 go test ./...
+      - docker ps -a | grep -P "vaulguard_\w+_run_[a-fA-F0-9]+" | awk '{ print $1 }' | xargs -I '{}' docker rm -f '{}'
+  build-image:
+    cmds:
+      - docker build .
+  docker-dev:
+    cmds:
+      - docker-compose up -d --build
   format:
     cmds:
       - go fmt ./...

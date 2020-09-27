@@ -2,6 +2,7 @@ package token
 
 import (
 	"context"
+
 	"github.com/BrosSquad/vaulguard/models"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -83,36 +84,36 @@ type mongoStorage struct {
 	cache  map[primitive.ObjectID]models.Token
 }
 
-func (m mongoStorage) Get(idOrObjectId interface{}) (models.TokenDto, error) {
-	objectId := idOrObjectId.(primitive.ObjectID)
+func (m mongoStorage) Get(idOrObjectID interface{}) (models.TokenDto, error) {
+	objectID := idOrObjectID.(primitive.ObjectID)
 	filter := bson.A{
 		bson.D{
-			{"$lookup", bson.D{
-				{"from", "applications"},
-				{"localField", "ApplicationId"},
-				{"foreignField", "_id"},
-				{"as", "app"},
+			{Key: "$lookup", Value: bson.D{
+				{Key: "from", Value: "applications"},
+				{Key: "localField", Value: "ApplicationId"},
+				{Key: "foreignField", Value: "_id"},
+				{Key: "as", Value: "app"},
 			}},
 		},
 		bson.D{
-			{"$match", bson.D{{"_id", objectId}}},
+			{Key: "$match", Value: bson.D{{Key: "_id", Value: objectID}}},
 		},
 		bson.D{
-			{"$unwind", "$app"},
+			{Key: "$unwind", Value: "$app"},
 		},
 		bson.D{
-			{"$project", bson.D{
-				{"ID", "$_id"},
-				{"Value", "$Value"},
-				{"ApplicationId", "$ApplicationId"},
-				{"Application", bson.D{
-					{"Id", "$app._id"},
-					{"Name", "$app.Name"},
-					{"CreatedAt", "$app.CreatedAt"},
-					{"UpdatedAt", "$app.UpdatedAt"},
+			{Key: "$project", Value: bson.D{
+				{Key: "ID", Value: "$_id"},
+				{Key: "Value", Value: "$Value"},
+				{Key: "ApplicationId", Value: "$ApplicationId"},
+				{Key: "Application", Value: bson.D{
+					{Key: "Id", Value: "$app._id"},
+					{Key: "Name", Value: "$app.Name"},
+					{Key: "CreatedAt", Value: "$app.CreatedAt"},
+					{Key: "UpdatedAt", Value: "$app.UpdatedAt"},
 				}},
-				{"CreatedAt", "$CreatedAt"},
-				{"UpdatedAt", "$UpdatedAt"},
+				{Key: "CreatedAt", Value: "$CreatedAt"},
+				{Key: "UpdatedAt", Value: "$UpdatedAt"},
 			}},
 		},
 	}

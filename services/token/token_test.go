@@ -2,20 +2,21 @@ package token
 
 import (
 	"context"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/BrosSquad/vaulguard/models"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
-func TestSqlToken(t *testing.T) {
+func TestSqliteToken(t *testing.T) {
 	conn, err := gorm.Open(sqlite.Open("token_test.db"), &gorm.Config{})
 	db, _ := conn.DB()
 	defer os.Remove("token_test.db")
@@ -53,7 +54,8 @@ func TestSqlToken(t *testing.T) {
 
 func TestMongoToken(t *testing.T) {
 	ctx := context.Background()
-	client, err := mongo.NewClient(options.Client().ApplyURI("mongodb://localhost:27017"))
+	mongoURI := os.Getenv("VAULGUARD_MONGO_TESTING")
+	client, err := mongo.NewClient(options.Client().ApplyURI(mongoURI))
 
 	if err != nil {
 		t.Fatal(err)

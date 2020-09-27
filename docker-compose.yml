@@ -11,6 +11,12 @@ services:
     restart: unless-stopped
     networks:
       - vaulguard
+    depends_on:
+      - mongo
+      - db
+    links:
+      - mongo
+      - db
   mongo:
     image: mongo:4.4.0-bionic
     restart: unless-stopped
@@ -18,7 +24,7 @@ services:
       - vaulguard
     ports:
       - '27017:27017'
-  postgres:
+  db:
     image: postgres:12.4-alpine
     restart: unless-stopped
     environment:

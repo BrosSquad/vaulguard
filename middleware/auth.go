@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"log"
 	"strings"
 
 	"github.com/BrosSquad/vaulguard/services/token"
@@ -8,31 +9,45 @@ import (
 )
 
 type TokenAuthConfig struct {
-	Header       string
-	HeaderPrefix string
-	TokenService token.Service
+	Headers        []string
+	HeaderPrefixes []string
+	TokenServices  []token.Service
 }
 
-func TokenAuth(config TokenAuthConfig) func(*fiber.Ctx) error {
+func extractToken(header, prefix string, prefixLen int) (string, error) {
+	if header == "" ||
+		len(header) < (prefixLen+1) ||
+		strings.ToLower(header[0:prefixLen]) != prefix {
+		return "", fiber.ErrUnauthorized
+	}
+
+	return header[prefixLen:], nil
+}
+
+func TokenAuth(config TokenAuthConfig) fiber.Handler {
+	headersLen := len(config.Headers)
+	headerPrefixesLen := len(config.HeaderPrefixes)
+	servicesLen := len(config.TokenServices)
+
+	if headersLen != headerPrefixesLen && headersLen != servicesLen && headerPrefixesLen != servicesLen {
+		log.Fatalf("config.Headers, config.HeaderPrefixes and config.TokenServices must have same length")
+	}
+
 	return func(ctx *fiber.Ctx) error {
-		authHeader := ctx.Get(config.Header)
-		headerPrefixLen := len(config.HeaderPrefix)
+		for i, service := range config.TokenServices {
+			t, err := extractToken(ctx.Get(config.Headers[i]), config.HeaderPrefixes[i], len(config.HeaderPrefixes[i]))
 
-		if authHeader == "" ||
-			len(authHeader) < (headerPrefixLen+1) ||
-			strings.ToLower(authHeader[0:headerPrefixLen]) != config.HeaderPrefix {
-			return fiber.ErrUnauthorized
+			if err != nil {
+				return err
+			}
+			app, ok := service.Verify(t)
+			if ok {
+				ctx.Locals("application", app)
+				return ctx.Next()
+			}
 		}
 
-		t := authHeader[headerPrefixLen:]
+		return fiber.ErrUnauthorized
 
-		app, ok := config.TokenService.Verify(t)
-
-		if !ok {
-			return fiber.ErrUnauthorized
-		}
-
-		ctx.Locals("application", app)
-		return ctx.Next()
 	}
 }

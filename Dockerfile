@@ -1,16 +1,9 @@
-FROM golang:1.15-alpine as builder
-RUN apk add --no-cache git sqlite make gcc curl g++ sqlite-dev
-
+FROM golang:1.15 as builder
 RUN curl -sL https://taskfile.dev/install.sh | sh
-
 WORKDIR /go/src/github.com/BrosSquad/vaulguard
 COPY . .
 
-
-RUN task test
 RUN task build
-
-
 
 FROM alpine:3.12
 
