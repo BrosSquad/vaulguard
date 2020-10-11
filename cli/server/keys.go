@@ -8,23 +8,24 @@ import (
 
 	"github.com/BrosSquad/vaulguard/config"
 	"github.com/BrosSquad/vaulguard/services"
+	"github.com/BrosSquad/vaulguard/utils"
 )
 
-const DefaultPermission = 0700
+const DefaultKeysPermission = 0700
 
 func generateKeyPair(privateKeyPath, publicKeyPath string, create bool) (services.Encryption, error) {
-	if err := createDirs(privateKeyPath, publicKeyPath); err != nil {
+	if err := utils.CreateDirs(DefaultKeysPermission, privateKeyPath, publicKeyPath); err != nil {
 		return nil, err
 	}
 	flags := os.O_RDWR | os.O_CREATE
 
-	privateKeyFile, err := os.OpenFile(privateKeyPath, flags, DefaultPermission)
+	privateKeyFile, err := os.OpenFile(privateKeyPath, flags, DefaultKeysPermission)
 	if err != nil {
 		return nil, err
 	}
 	defer privateKeyFile.Close()
 
-	publicKeyFile, err := os.OpenFile(publicKeyPath, flags, DefaultPermission)
+	publicKeyFile, err := os.OpenFile(publicKeyPath, flags, DefaultKeysPermission)
 	if err != nil {
 		return nil, err
 	}
@@ -46,12 +47,12 @@ func generateKeyPair(privateKeyPath, publicKeyPath string, create bool) (service
 }
 
 func getSecretKey(service services.Encryption, secretKeyPath string, secretKeyExists bool) ([]byte, error) {
-	if err := createDirs(secretKeyPath); err != nil {
+	if err := utils.CreateDirs(DefaultKeysPermission, secretKeyPath); err != nil {
 		return nil, err
 	}
 
 	flags := os.O_RDWR | os.O_CREATE
-	secretKeyFile, err := os.OpenFile(secretKeyPath, flags, DefaultPermission)
+	secretKeyFile, err := os.OpenFile(secretKeyPath, flags, DefaultKeysPermission)
 	if err != nil {
 		return nil, err
 	}
@@ -87,23 +88,23 @@ func checkKeyPairExistence(privateKeyExists, publicKeyExists bool) error {
 }
 
 func getKeys(config *config.Config) ([]byte, error) {
-	privateKeyPath, err := getAbsolutePath(config.Keys.Private)
+	privateKeyPath, err := utils.GetAbsolutePath(config.Keys.Private)
 
 	if err != nil {
 		return nil, err
 	}
 
-	publicKeyPath, err := getAbsolutePath(config.Keys.Public)
+	publicKeyPath, err := utils.GetAbsolutePath(config.Keys.Public)
 	if err != nil {
 		return nil, err
 	}
 
-	secretKeyPath, err := getAbsolutePath(config.Keys.Secret)
+	secretKeyPath, err := utils.GetAbsolutePath(config.Keys.Secret)
 	if err != nil {
 		return nil, err
 	}
 
-	privateKeyExists, publicKeyExists, secretKeyExists := fileExists(privateKeyPath), fileExists(publicKeyPath), fileExists(secretKeyPath)
+	privateKeyExists, publicKeyExists, secretKeyExists := utils.FileExists(privateKeyPath), utils.FileExists(publicKeyPath), utils.FileExists(secretKeyPath)
 
 	if err := checkKeyPairExistence(privateKeyExists, publicKeyExists); err != nil {
 		return nil, err

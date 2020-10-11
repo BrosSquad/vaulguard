@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"log"
 	"strings"
 
 	"github.com/BrosSquad/vaulguard/services/token"
@@ -29,8 +28,8 @@ func TokenAuth(config TokenAuthConfig) fiber.Handler {
 	headerPrefixesLen := len(config.HeaderPrefixes)
 	servicesLen := len(config.TokenServices)
 
-	if headersLen != headerPrefixesLen && headersLen != servicesLen && headerPrefixesLen != servicesLen {
-		log.Fatalf("config.Headers, config.HeaderPrefixes and config.TokenServices must have same length")
+	if headersLen != headerPrefixesLen || headersLen != servicesLen || headerPrefixesLen != servicesLen {
+		panic("config.Headers, config.HeaderPrefixes and config.TokenServices must have same length")
 	}
 
 	return func(ctx *fiber.Ctx) error {

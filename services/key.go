@@ -74,7 +74,7 @@ func (g keyPairGenerator) Generate(out ...interface{}) error {
 
 	if len(out) == 2 {
 		setOut(out[0], public[:])
-		setOut(out[0], private[:])
+		setOut(out[1], private[:])
 	}
 
 	return nil
