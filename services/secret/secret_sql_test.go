@@ -2,14 +2,11 @@ package secret
 
 import (
 	"crypto/rand"
-	"encoding/base64"
-	mathrand "math/rand"
 	"os"
 	"testing"
 
 	"github.com/BrosSquad/vaulguard/models"
 	"github.com/BrosSquad/vaulguard/services"
-	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -117,83 +114,11 @@ func TestNewGormSecretStorage(t *testing.T) {
 		}
 
 		if secretDecrypted.Value != newValue {
-			t.Fatal("Updating secert failed")
+			t.Fatal("Updating secret failed")
 		}
 
 		if secretDecrypted.Value == value {
 			t.Fatal("Secret remained the same value as before")
-		}
-	})
-}
-
-func BenchmarkSecretsInSqlite(b *testing.B) {
-	conn, err := gorm.Open(postgres.New(postgres.Config{
-		DSN: "host=localhost user=postgres password=postgres dbname=vaulguard_benchmark port=5432 sslmode=disable TimeZone=UTC",
-	}), &gorm.Config{})
-	db, _ := conn.DB()
-
-	defer db.Close()
-	if err != nil {
-		b.Fatal(err)
-		return
-	}
-
-	defer func() {
-		conn.Exec("DELETE FROM secrets")
-		conn.Exec("DELETE FROM applications")
-	}()
-
-	if err := conn.AutoMigrate(&models.Application{}, &models.Token{}, &models.Secret{}); err != nil {
-		b.Fatal(err)
-	}
-
-	application := models.Application{Name: "Test Application"}
-	conn.Create(&application)
-
-	appKey := make([]byte, 32)
-	_, _ = rand.Read(appKey)
-	encryptionService, _ := services.NewSecretKeyEncryption(appKey)
-	service := NewGormSecretStorage(GormSecretConfig{
-		Encryption: encryptionService,
-		DB:         conn,
-		CacheSize:  32,
-	})
-
-	secretsMap := make([]Secret, 10000)
-
-	keyBytes := make([]byte, 64)
-	valueBytes := make([]byte, 64)
-
-	for i := 0; i < 10000; i++ {
-		_, _ = rand.Read(keyBytes)
-		_, _ = rand.Read(valueBytes)
-		key := base64.RawStdEncoding.EncodeToString(keyBytes)
-		value := base64.RawStdEncoding.EncodeToString(valueBytes)
-
-		secretsMap[i] = Secret{
-			key, value,
-		}
-	}
-
-	b.Run("Insert 10_000", func(b *testing.B) {
-		for _, value := range secretsMap {
-			service.Create(application.ID, value.Key, value.Value)
-		}
-	})
-
-	b.Run("GetMultipleValues", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			length := mathrand.Int31n(int32(b.N))
-			keys := make([]string, length)
-			for j := 0; j < int(length); j++ {
-				keys[j] = secretsMap[j].Key
-			}
-
-			_, err = service.Get(application.ID, keys)
-
-			if err != nil {
-				b.Fatal(err)
-			}
 		}
 	})
 }

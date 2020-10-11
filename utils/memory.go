@@ -1,57 +1,14 @@
-package main
+package utils
 
 import (
 	"context"
-	"os"
-	"path"
-	"path/filepath"
 	"runtime"
 	"time"
 
 	"github.com/BrosSquad/vaulguard/log"
 )
 
-func getAbsolutePath(file string) (string, error) {
-	if !path.IsAbs(file) {
-		out, err := filepath.Abs(file)
-		if err != nil {
-			return "", err
-		}
-		return out, nil
-	}
-
-	return file, nil
-}
-
-func fileExists(filename string) bool {
-	info, err := os.Stat(filename)
-	if os.IsNotExist(err) {
-		return false
-	}
-	return !info.IsDir()
-}
-func dirExists(filename string) bool {
-	info, err := os.Stat(filename)
-	if os.IsNotExist(err) {
-		return false
-	}
-	return info.IsDir()
-}
-
-func createDirs(paths ...string) error {
-	for _, p := range paths {
-		dir := filepath.Dir(p)
-		if !dirExists(dir) {
-			if err := os.MkdirAll(dir, DefaultPermission); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-func memoryUsage(ctx context.Context, logger *log.Logger) {
+func MemoryUsage(ctx context.Context, logger *log.Logger) {
 	var m runtime.MemStats
 	for {
 		select {
