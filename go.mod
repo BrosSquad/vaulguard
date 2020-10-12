@@ -4,6 +4,7 @@ go 1.15
 
 require (
 	github.com/aws/aws-sdk-go v1.35.7 // indirect
+	github.com/go-playground/validator/v10 v10.4.0 // indirect
 	github.com/go-yaml/yaml v2.1.0+incompatible
 	github.com/gofiber/fiber/v2 v2.0.2
 	github.com/gofiber/utils v0.0.10
