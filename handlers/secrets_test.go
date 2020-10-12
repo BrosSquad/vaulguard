@@ -2,10 +2,17 @@ package handlers
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
+	"github.com/BrosSquad/vaulguard/services"
+	"github.com/BrosSquad/vaulguard/services/application"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -88,27 +95,29 @@ func TestCreateSecret(t *testing.T) {
 		}
 	}
 
-	setup := func(service secret.Service) *fiber.App {
+	setup := func(service secret.Service, setupMiddleware bool) *fiber.App {
 		app := fiber.New(fiber.Config{
 			ErrorHandler: Error(englishTranslations),
 		})
-		app.Use(func(c *fiber.Ctx) error {
-			c.Locals("application", models.ApplicationDto{
-				ID:        uint(1),
-				Name:      "Test Application",
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
+		if setupMiddleware {
+			app.Use(func(c *fiber.Ctx) error {
+				c.Locals("application", models.ApplicationDto{
+					ID:        uint(1),
+					Name:      "Test Application",
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				})
+				return c.Next()
 			})
-			return c.Next()
-		})
-		RegisterSecretHandlers(v, service, app.Group("/secrets"))
+			RegisterSecretHandlers(v, service, app.Group("/secrets"))
+		}
 		return app
 	}
 
 	t.Run("InsertSuccess", func(t *testing.T) {
 		service := createMockService()
 		service.On("Create", uint(1), "Test", "Test").Return(nil)
-		app := setup(service)
+		app := setup(service, true)
 
 		data, err := json.Marshal(struct {
 			Key   string
@@ -130,7 +139,7 @@ func TestCreateSecret(t *testing.T) {
 	t.Run("InsertFailed", func(t *testing.T) {
 		service := createMockService()
 		service.On("Create", uint(1), "Test", "Test").Return(errors.New("insert error"))
-		app := setup(service)
+		app := setup(service, true)
 
 		data, err := json.Marshal(struct {
 			Key   string
@@ -151,7 +160,7 @@ func TestCreateSecret(t *testing.T) {
 
 	t.Run("ValidationError", func(t *testing.T) {
 		service := createMockService()
-		app := setup(service)
+		app := setup(service, true)
 
 		data, err := json.Marshal(struct {
 			Key   string
@@ -168,6 +177,58 @@ func TestCreateSecret(t *testing.T) {
 		asserts.EqualValues(http.StatusUnprocessableEntity, res.StatusCode)
 		asserts.Len(service.Data, 0)
 		asserts.EqualValues(0, service.Id)
+	})
+
+	t.Run("GormIntegrationTest", func(t *testing.T) {
+		asserts := require.New(t)
+		key := make([]byte, services.SecretKeyLength)
+		n, err := rand.Read(key)
+		asserts.Nil(err)
+		asserts.Equal(services.SecretKeyLength, n)
+		encryption, err := services.NewSecretKeyEncryption(key)
+		asserts.Nil(err)
+		path, err := filepath.Abs("./create_secrets.db")
+		asserts.Nil(err)
+		defer os.Remove(path)
+		db, err := gorm.Open(sqlite.Open(path), &gorm.Config{})
+		asserts.Nil(err)
+		asserts.Nil(db.AutoMigrate(&models.Application{},&models.Token{},&models.Secret{}))
+		service := secret.NewGormSecretStorage(secret.GormSecretConfig{
+			Encryption: encryption,
+			CacheSize:  10,
+			DB:         db,
+		})
+		applicationDto, err := application.NewSqlService(db).Create("TestApplication")
+		asserts.Nil(err)
+		app := setup(service, false)
+		app.Use(func(c *fiber.Ctx) error {
+			c.Locals("application", applicationDto)
+			return c.Next()
+		})
+		RegisterSecretHandlers(v, service, app.Group("/secrets"))
+		data, err := json.Marshal(struct {
+			Key   string
+			Value string
+		}{Key: "Test", Value: "Test"})
+		asserts.Nil(err)
+		buff := bytes.NewBuffer(data)
+
+		req := httptest.NewRequest(http.MethodPost, "/secrets", buff)
+		req.Header.Add(fiber.HeaderContentType, fiber.MIMEApplicationJSONCharsetUTF8)
+
+		res, err := app.Test(req, 400)
+		asserts.Nil(err)
+		asserts.Equal(fiber.StatusCreated, res.StatusCode)
+		payload := struct {
+			ID uint `json:"id"`
+			Key string `json:"key"`
+			Value string `json:"value"`
+		}{}
+		err = json.NewDecoder(res.Body).Decode(&payload)
+		asserts.Nil(err)
+		asserts.NotEqual(0, payload.ID)
+		asserts.Equal("Test", payload.Key)
+		asserts.Equal("Test", payload.Value)
 	})
 
 }
