@@ -142,7 +142,7 @@ func main() {
 		ApplicationService:    createApplicationService(sqlDb, applicationCollection, cfg.UseSql),
 		TokenService:          createTokenService(ctx, sqlDb, tokenCollection, cfg.UseSql),
 		Logger:                logger,
-		Validator: v,
+		Validator:             v,
 	}
 
 	fiberAPI.RegisterHandlers()
