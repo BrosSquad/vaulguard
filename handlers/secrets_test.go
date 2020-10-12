@@ -4,16 +4,20 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"github.com/BrosSquad/vaulguard/models"
-	"github.com/BrosSquad/vaulguard/services/secret"
-	"github.com/gofiber/fiber/v2"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/BrosSquad/vaulguard/models"
+	"github.com/BrosSquad/vaulguard/services/secret"
+	"github.com/go-playground/locales/en"
+	ut "github.com/go-playground/universal-translator"
+	"github.com/go-playground/validator/v10"
+	"github.com/gofiber/fiber/v2"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 type mockSecretService struct {
@@ -47,7 +51,7 @@ func (m *mockSecretService) Create(applicationID interface{}, key, value string)
 	defer m.IdMutex.Unlock()
 	defer m.Mutex.Unlock()
 	m.Id++
-	s := models.Secret{ID:m.Id, Key: key, Value: []byte(value), ApplicationId: applicationID.(uint)}
+	s := models.Secret{ID: m.Id, Key: key, Value: []byte(value), ApplicationId: applicationID.(uint)}
 	m.Data = append(m.Data, s)
 
 	return s, nil
@@ -68,6 +72,12 @@ func (m *mockSecretService) InvalidateCache(applicationID interface{}) error {
 func TestCreateSecret(t *testing.T) {
 	t.Parallel()
 	asserts := require.New(t)
+	v := validator.New()
+	english := en.New()
+	uni := ut.New(english, english)
+	englishTranslations, found := uni.GetTranslator("en")
+
+	asserts.True(found)
 
 	createMockService := func() *mockSecretService {
 		return &mockSecretService{
@@ -79,7 +89,9 @@ func TestCreateSecret(t *testing.T) {
 	}
 
 	setup := func(service secret.Service) *fiber.App {
-		app := fiber.New()
+		app := fiber.New(fiber.Config{
+			ErrorHandler: Error(englishTranslations),
+		})
 		app.Use(func(c *fiber.Ctx) error {
 			c.Locals("application", models.ApplicationDto{
 				ID:        uint(1),
@@ -89,7 +101,7 @@ func TestCreateSecret(t *testing.T) {
 			})
 			return c.Next()
 		})
-		RegisterSecretHandlers(service, app.Group("/secrets"))
+		RegisterSecretHandlers(v, service, app.Group("/secrets"))
 		return app
 	}
 
@@ -114,7 +126,7 @@ func TestCreateSecret(t *testing.T) {
 		asserts.Len(service.Data, 1)
 		asserts.EqualValues(1, service.Id)
 	})
-	
+
 	t.Run("InsertFailed", func(t *testing.T) {
 		service := createMockService()
 		service.On("Create", uint(1), "Test", "Test").Return(errors.New("insert error"))
@@ -136,9 +148,26 @@ func TestCreateSecret(t *testing.T) {
 		asserts.Len(service.Data, 0)
 		asserts.EqualValues(0, service.Id)
 	})
-	
-	t.Run("ValidationError", func(t *testing.T) {
 
+	t.Run("ValidationError", func(t *testing.T) {
+		service := createMockService()
+		app := setup(service)
+
+		data, err := json.Marshal(struct {
+			Key   string
+			Value string
+		}{Key: "", Value: ""})
+		asserts.Nil(err)
+		buff := bytes.NewBuffer(data)
+
+		req := httptest.NewRequest(http.MethodPost, "/secrets", buff)
+		req.Header.Add(fiber.HeaderContentType, fiber.MIMEApplicationJSONCharsetUTF8)
+
+		res, err := app.Test(req, 400)
+		asserts.Nil(err)
+		asserts.EqualValues(http.StatusUnprocessableEntity, res.StatusCode)
+		asserts.Len(service.Data, 0)
+		asserts.EqualValues(0, service.Id)
 	})
 
 }

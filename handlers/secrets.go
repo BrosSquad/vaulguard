@@ -4,8 +4,8 @@ import (
 	"github.com/BrosSquad/vaulguard/middleware"
 	"github.com/BrosSquad/vaulguard/models"
 	"github.com/BrosSquad/vaulguard/services/secret"
-	"github.com/gofiber/fiber/v2"
 	"github.com/go-playground/validator/v10"
+	"github.com/gofiber/fiber/v2"
 )
 
 func RegisterSecretHandlers(validate *validator.Validate, service secret.Service, r fiber.Router) {
@@ -50,7 +50,7 @@ func getManySecrets(service secret.Service) fiber.Handler {
 	}
 }
 
-func createSecret(service secret.Service, validate *validator.Validate, ) fiber.Handler {
+func createSecret(service secret.Service, validate *validator.Validate) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		payload := struct {
 			Key   string `json:"key" validate:"required"`

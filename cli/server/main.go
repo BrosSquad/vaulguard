@@ -2,14 +2,16 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
-	"github.com/go-playground/locales/en"
-	ut "github.com/go-playground/universal-translator"
-	"github.com/go-playground/validator/v10"
 	"io"
 	"log"
 	"os"
+
+	"github.com/go-playground/locales/en"
+	ut "github.com/go-playground/universal-translator"
+	"github.com/go-playground/validator/v10"
 
 	"github.com/BrosSquad/vaulguard/api"
 	"github.com/BrosSquad/vaulguard/config"
@@ -22,6 +24,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"gorm.io/gorm"
 )
+
+const locale = "en"
 
 func createConfig(configPath string, port int) (*config.Config, error) {
 	var err error
@@ -114,12 +118,17 @@ func main() {
 	}
 
 	v := validator.New()
-	en := en.New
-	translator := ut.New()
+	english := en.New()
+	uni := ut.New(english, english)
+	englishTranslations, found := uni.GetTranslator(locale)
+
+	if !found {
+		logger.Fatalf(errors.New("locale not found"), "No translations found for locale %s", locale)
+	}
 
 	app := fiber.New(fiber.Config{
 		Prefork:      cfg.Http.Prefork,
-		ErrorHandler: handlers.Error(),
+		ErrorHandler: handlers.Error(englishTranslations),
 	})
 
 	fiberAPI := api.Fiber{
@@ -133,6 +142,7 @@ func main() {
 		ApplicationService:    createApplicationService(sqlDb, applicationCollection, cfg.UseSql),
 		TokenService:          createTokenService(ctx, sqlDb, tokenCollection, cfg.UseSql),
 		Logger:                logger,
+		Validator:             v,
 	}
 
 	fiberAPI.RegisterHandlers()

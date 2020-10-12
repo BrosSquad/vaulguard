@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+
 	"github.com/BrosSquad/vaulguard/services"
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
@@ -29,7 +30,7 @@ func Error(translator ut.Translator) fiber.ErrorHandler {
 		}
 
 		if err, ok := err.(validator.ValidationErrors); ok {
-			err.Translate(translator)
+			return ctx.Status(fiber.StatusUnprocessableEntity).JSON(err.Translate(translator))
 		}
 
 		if errors.Is(err, services.ErrAlreadyExists) {
