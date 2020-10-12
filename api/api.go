@@ -8,6 +8,7 @@ import (
 	"github.com/BrosSquad/vaulguard/services/application"
 	"github.com/BrosSquad/vaulguard/services/secret"
 	"github.com/BrosSquad/vaulguard/services/token"
+	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/mongo"
 
@@ -31,6 +32,7 @@ type Fiber struct {
 	ApplicationService application.Service
 	SecretService      secret.Service
 	Logger             *log.Logger
+	Validator          *validator.Validate
 }
 
 func (f Fiber) RegisterHandlers() {
@@ -53,7 +55,7 @@ func (f Fiber) registerSecrets() {
 		Headers:        []string{"authorization"},
 		HeaderPrefixes: []string{"token "},
 	}))
-	handlers.RegisterSecretHandlers(f.SecretService, secretsGroup)
+	handlers.RegisterSecretHandlers(f.Validator, f.SecretService, secretsGroup)
 
 	f.Logger.Debug("SECRET routes added.")
 
