@@ -4,6 +4,9 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/go-playground/locales/en"
+	ut "github.com/go-playground/universal-translator"
+	"github.com/go-playground/validator/v10"
 	"io"
 	"log"
 	"os"
@@ -110,9 +113,13 @@ func main() {
 		logger.Fatalf(err, "Error while creating encryption service\n")
 	}
 
+	v := validator.New()
+	en := en.New
+	translator := ut.New()
+
 	app := fiber.New(fiber.Config{
 		Prefork:      cfg.Http.Prefork,
-		ErrorHandler: handlers.Error,
+		ErrorHandler: handlers.Error(),
 	})
 
 	fiberAPI := api.Fiber{

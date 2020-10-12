@@ -5,12 +5,13 @@ import (
 	"github.com/BrosSquad/vaulguard/models"
 	"github.com/BrosSquad/vaulguard/services/secret"
 	"github.com/gofiber/fiber/v2"
+	"github.com/go-playground/validator/v10"
 )
 
-func RegisterSecretHandlers(service secret.Service, r fiber.Router) {
+func RegisterSecretHandlers(validate *validator.Validate, service secret.Service, r fiber.Router) {
 	r.Get("/", getSecrets(service)).Use(middleware.ParsePageAndPerPage)
 	r.Get("/many", getManySecrets(service))
-	r.Post("/", createSecret(service))
+	r.Post("/", createSecret(service, validate))
 	r.Delete("/invalidate", invalidateCache(service))
 }
 
@@ -49,11 +50,11 @@ func getManySecrets(service secret.Service) fiber.Handler {
 	}
 }
 
-func createSecret(service secret.Service) fiber.Handler {
+func createSecret(service secret.Service, validate *validator.Validate, ) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		payload := struct {
-			Key   string `json:"key"`
-			Value string `json:"value"`
+			Key   string `json:"key" validate:"required"`
+			Value string `json:"value" validate:"required"`
 		}{}
 
 		app := c.Locals("application").(models.ApplicationDto)
@@ -61,21 +62,23 @@ func createSecret(service secret.Service) fiber.Handler {
 			return fiber.ErrBadRequest
 		}
 
-		// TODO: Validate
+		if err := validate.Struct(payload); err != nil {
+			return err
+		}
 
-		secret, err := service.Create(app.ID, payload.Key, payload.Value)
+		s, err := service.Create(app.ID, payload.Key, payload.Value)
 
 		if err != nil {
 			return err
 		}
 
-		return c.JSON(struct {
+		return c.Status(fiber.StatusCreated).JSON(struct {
 			ID    interface{} `json:"id"`
 			Key   string      `json:"key"`
 			Value string      `json:"value"`
 		}{
-			ID:    secret.ID,
-			Key:   secret.Key,
+			ID:    s.ID,
+			Key:   s.Key,
 			Value: payload.Value,
 		})
 	}
