@@ -1,12 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/spf13/cobra"
 	"log"
 )
 
-func tokenCommands() *cobra.Command {
+func tokenCommands(ctx context.Context) *cobra.Command {
 	t := &cobra.Command{
 		Use: "token",
 	}
@@ -16,7 +17,7 @@ func tokenCommands() *cobra.Command {
 		Long: "Create new token for application",
 		Args: cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			app, err := applicationService.GetByName(args[0])
+			app, err := applicationService.GetByName(ctx, args[0])
 
 			if err != nil {
 				log.Fatal(err)

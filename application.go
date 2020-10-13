@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -10,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func applicationCommands() *cobra.Command {
+func applicationCommands(ctx context.Context) *cobra.Command {
 	app := &cobra.Command{
 		Use: "app",
 	}
@@ -26,7 +27,7 @@ func applicationCommands() *cobra.Command {
 
 				return nil
 			}
-			err := applicationService.List(iterate)
+			err := applicationService.List(ctx, iterate)
 
 			if err != nil {
 				log.Fatal(err)
@@ -39,7 +40,7 @@ func applicationCommands() *cobra.Command {
 		Long: "Search for application by it's name",
 		Args: cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			app, err := applicationService.GetByName(args[0])
+			app, err := applicationService.GetByName(ctx, args[0])
 
 			if err != nil {
 				log.Fatal(err.Error())
@@ -54,7 +55,7 @@ func applicationCommands() *cobra.Command {
 		Long: "Create new application for VaulGuard",
 		Args: cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			app, err := applicationService.Create(args[0])
+			app, err := applicationService.Create(ctx, args[0])
 
 			if err != nil {
 				log.Fatal(err.Error())
@@ -87,7 +88,7 @@ func applicationCommands() *cobra.Command {
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 			id, _ := strconv.Atoi(args[1])
-			err := applicationService.Delete(uint(id))
+			err := applicationService.Delete(ctx, uint(id))
 
 			if err != nil {
 				log.Fatal(err.Error())

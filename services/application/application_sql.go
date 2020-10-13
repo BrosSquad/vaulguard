@@ -1,6 +1,7 @@
 package application
 
 import (
+	"context"
 	"github.com/BrosSquad/vaulguard/models"
 	"github.com/BrosSquad/vaulguard/services"
 	"gorm.io/gorm"
@@ -12,10 +13,10 @@ type sqlService struct {
 
 const size = 50
 
-func (s sqlService) List(cb func([]models.ApplicationDto) error) error {
+func (s sqlService) List(ctx context.Context, cb func([]models.ApplicationDto) error) error {
 	results := make([]models.Application, 0, size)
 	appsDto := make([]models.ApplicationDto, 0, size)
-	err := s.db.FindInBatches(&results, size, func(tx *gorm.DB, batch int) error {
+	err := s.db.WithContext(ctx).FindInBatches(&results, size, func(tx *gorm.DB, batch int) error {
 		appsDto = appsDto[:0]
 		for _, result := range results {
 			appsDto = append(appsDto, models.ApplicationDto{
@@ -36,10 +37,10 @@ func (s sqlService) List(cb func([]models.ApplicationDto) error) error {
 	return nil
 }
 
-func (s sqlService) GetByName(name string) (models.ApplicationDto, error) {
+func (s sqlService) GetByName(ctx context.Context, name string) (models.ApplicationDto, error) {
 	app := models.Application{}
 
-	if err := s.db.Where("name = ?", name).Limit(1).Find(&app).Error; err != nil {
+	if err := s.db.WithContext(ctx).Where("name = ?", name).Limit(1).Find(&app).Error; err != nil {
 		return models.ApplicationDto{}, err
 	}
 
@@ -51,10 +52,10 @@ func (s sqlService) GetByName(name string) (models.ApplicationDto, error) {
 	}, nil
 }
 
-func (s sqlService) Create(name string) (models.ApplicationDto, error) {
+func (s sqlService) Create(ctx context.Context, name string) (models.ApplicationDto, error) {
 	app := models.Application{}
 	var count int64
-	tx := s.db.Model(&app).Where("name = ?", name).Count(&count)
+	tx := s.db.WithContext(ctx).Model(&app).Where("name = ?", name).Count(&count)
 
 	if tx.Error != nil {
 		return models.ApplicationDto{}, nil
@@ -82,7 +83,7 @@ func (s sqlService) Create(name string) (models.ApplicationDto, error) {
 	}, nil
 }
 
-func (s sqlService) Get(page, perPage int) ([]models.ApplicationDto, error) {
+func (s sqlService) Get(ctx context.Context, page, perPage int) ([]models.ApplicationDto, error) {
 	if page < 0 {
 		page *= -1
 	}
@@ -93,7 +94,7 @@ func (s sqlService) Get(page, perPage int) ([]models.ApplicationDto, error) {
 
 	apps := make([]models.Application, 0, perPage)
 
-	if err := s.db.Limit(perPage).Offset((page - 1) * perPage).Find(&apps).Error; err != nil {
+	if err := s.db.WithContext(ctx).Limit(perPage).Offset((page - 1) * perPage).Find(&apps).Error; err != nil {
 		return nil, err
 	}
 
@@ -113,10 +114,10 @@ func (s sqlService) Get(page, perPage int) ([]models.ApplicationDto, error) {
 	return appsDto, nil
 }
 
-func (s sqlService) GetOne(id interface{}) (models.ApplicationDto, error) {
+func (s sqlService) GetOne(ctx context.Context, id interface{}) (models.ApplicationDto, error) {
 	app := models.Application{}
 
-	if err := s.db.First(&app, id.(uint)).Error; err != nil {
+	if err := s.db.WithContext(ctx).First(&app, id.(uint)).Error; err != nil {
 		return models.ApplicationDto{}, err
 	}
 
@@ -128,16 +129,16 @@ func (s sqlService) GetOne(id interface{}) (models.ApplicationDto, error) {
 	}, nil
 }
 
-func (s sqlService) Update(id interface{}, name string) (models.ApplicationDto, error) {
+func (s sqlService) Update(ctx context.Context, id interface{}, name string) (models.ApplicationDto, error) {
 	app := models.Application{}
 
-	if err := s.db.First(&app, id).Error; err != nil {
+	if err := s.db.WithContext(ctx).First(&app, id).Error; err != nil {
 		return models.ApplicationDto{}, err
 	}
 
 	app.Name = name
 
-	if err := s.db.Save(&app).Error; err != nil {
+	if err := s.db.WithContext(ctx).Save(&app).Error; err != nil {
 		return models.ApplicationDto{}, err
 	}
 
@@ -149,9 +150,9 @@ func (s sqlService) Update(id interface{}, name string) (models.ApplicationDto, 
 	}, nil
 }
 
-func (s sqlService) Delete(id interface{}) error {
+func (s sqlService) Delete(ctx context.Context, id interface{}) error {
 	app := models.Application{}
-	return s.db.Unscoped().Delete(&app, id).Error
+	return s.db.WithContext(ctx).Unscoped().Delete(&app, id).Error
 }
 
 func NewSqlService(db *gorm.DB) Service {
