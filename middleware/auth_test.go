@@ -18,7 +18,8 @@ type mockTokenService struct {
 }
 
 func (m *mockTokenService) Generate(i interface{}) string {
-	panic("implement me")
+	args := m.Called(i)
+	return args.String(0)
 }
 
 func (m *mockTokenService) Verify(s string) (models.ApplicationDto, bool) {
@@ -30,7 +31,6 @@ func (m *mockTokenService) Verify(s string) (models.ApplicationDto, bool) {
 func TestTokenAuth(t *testing.T) {
 	t.Parallel()
 	asserts := require.New(t)
-	//app.Use()
 
 	t.Run("NotEnoughParams", func(t *testing.T) {
 		asserts.Panics(func() {
@@ -70,11 +70,10 @@ func TestTokenAuth(t *testing.T) {
 
 		resp, err := app.Test(req)
 		asserts.Nil(err)
-		defer resp.Body.Close()
 		data, err := ioutil.ReadAll(resp.Body)
 		asserts.Nil(err)
-
 		asserts.Equal("Hello TestApplication", string(data))
+		asserts.Nil(resp.Body.Close())
 	})
 	t.Run("TokenVerificationMiddleware_NoToken", func(t *testing.T) {
 		app := fiber.New()
@@ -103,8 +102,8 @@ func TestTokenAuth(t *testing.T) {
 
 		resp, err := app.Test(req)
 		asserts.Nil(err)
-		defer resp.Body.Close()
 		asserts.Equal(resp.StatusCode, fiber.StatusUnauthorized)
+		asserts.Nil(resp.Body.Close())
 	})
 
 	t.Run("TokenVerificationMiddleware_InvalidToken", func(t *testing.T) {
@@ -130,7 +129,7 @@ func TestTokenAuth(t *testing.T) {
 
 		resp, err := app.Test(req)
 		asserts.Nil(err)
-		defer resp.Body.Close()
 		asserts.Equal(resp.StatusCode, fiber.StatusUnauthorized)
+		asserts.Nil(resp.Body.Close())
 	})
 }

@@ -8,89 +8,92 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+type secretHandlers struct {
+	validator *validator.Validate
+	service   secret.Service
+}
+
 func RegisterSecretHandlers(validate *validator.Validate, service secret.Service, r fiber.Router) {
-	r.Get("/", getSecrets(service)).Use(middleware.ParsePageAndPerPage)
-	r.Get("/many", getManySecrets(service))
-	r.Post("/", createSecret(service, validate))
-	r.Delete("/invalidate", invalidateCache(service))
+	secretHandlers := secretHandlers{
+		validator: validate,
+		service:   service,
+	}
+	r.Get("/", secretHandlers.getSecrets).Use(middleware.ParsePageAndPerPage)
+	r.Get("/many", secretHandlers.getManySecrets)
+	r.Post("/", secretHandlers.createSecret)
+	r.Delete("/invalidate", secretHandlers.invalidateCache)
 }
 
-func getSecrets(service secret.Service) fiber.Handler {
-	return func(ctx *fiber.Ctx) error {
-		app := ctx.Locals("application").(models.ApplicationDto)
-		page := ctx.Locals("page").(int)
-		perPage := ctx.Locals("perPage").(int)
+func (s secretHandlers) getSecrets(ctx *fiber.Ctx) error {
+	app := ctx.Locals("application").(models.ApplicationDto)
+	page := ctx.Locals("page").(int)
+	perPage := ctx.Locals("perPage").(int)
 
-		secrets, err := service.Paginate(app.ID, page, perPage)
+	secrets, err := s.service.Paginate(app.ID, page, perPage)
 
-		if err != nil {
-			return err
-		}
-
-		return ctx.JSON(secrets)
+	if err != nil {
+		return err
 	}
+
+	return ctx.JSON(secrets)
 }
 
-func getManySecrets(service secret.Service) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		keysStruct := struct {
-			keys []string `query:"keys"`
-		}{}
-		app := c.Locals("application").(models.ApplicationDto)
-		if err := c.QueryParser(&keysStruct); err != nil {
-			return fiber.ErrBadRequest
-		}
-
-		secrets, err := service.Get(app.ID, keysStruct.keys)
-		if err != nil {
-			return err
-		}
-
-		return c.JSON(secrets)
+func (s secretHandlers) getManySecrets(c *fiber.Ctx) error {
+	type query struct {
+		keys []string `query:"keys"`
 	}
+	var keysStruct query
+	app := c.Locals("application").(models.ApplicationDto)
+	if err := c.QueryParser(&keysStruct); err != nil {
+		return fiber.ErrBadRequest
+	}
+
+	secrets, err := s.service.Get(app.ID, keysStruct.keys)
+	if err != nil {
+		return err
+	}
+
+	return c.JSON(secrets)
 }
 
-func createSecret(service secret.Service, validate *validator.Validate) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		payload := struct {
-			Key   string `json:"key" validate:"required"`
-			Value string `json:"value" validate:"required"`
-		}{}
-
-		app := c.Locals("application").(models.ApplicationDto)
-		if err := c.BodyParser(&payload); err != nil {
-			return fiber.ErrBadRequest
-		}
-
-		if err := validate.Struct(payload); err != nil {
-			return err
-		}
-
-		s, err := service.Create(app.ID, payload.Key, payload.Value)
-
-		if err != nil {
-			return err
-		}
-
-		return c.Status(fiber.StatusCreated).JSON(struct {
-			ID    interface{} `json:"id"`
-			Key   string      `json:"key"`
-			Value string      `json:"value"`
-		}{
-			ID:    s.ID,
-			Key:   s.Key,
-			Value: payload.Value,
-		})
+func (s secretHandlers) createSecret(c *fiber.Ctx) error {
+	type payload struct {
+		Key   string `json:"key" validate:"required"`
+		Value string `json:"value" validate:"required"`
 	}
+
+	var p payload
+	app := c.Locals("application").(models.ApplicationDto)
+	if err := c.BodyParser(&p); err != nil {
+		return fiber.ErrBadRequest
+	}
+
+	if err := s.validator.Struct(p); err != nil {
+		return err
+	}
+
+	data, err := s.service.Create(app.ID, p.Key, p.Value)
+
+	if err != nil {
+		return err
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(struct {
+		ID    interface{} `json:"id"`
+		Key   string      `json:"key"`
+		Value string      `json:"value"`
+	}{
+		ID:    data.ID,
+		Key:   data.Key,
+		Value: p.Value,
+	})
 }
 
-func invalidateCache(service secret.Service) fiber.Handler {
-	return func(ctx *fiber.Ctx) error {
-		app := ctx.Locals("application").(models.ApplicationDto)
+func (s secretHandlers) invalidateCache(ctx *fiber.Ctx) error {
+	app := ctx.Locals("application").(models.ApplicationDto)
 
-		if err := service.InvalidateCache(app.ID); err != nil {
-			return fiber.ErrInternalServerError
-		}
-		return ctx.SendStatus(204)
+	if err := s.service.InvalidateCache(app.ID); err != nil {
+		return fiber.ErrInternalServerError
 	}
+	return ctx.SendStatus(fiber.StatusNoContent)
 }

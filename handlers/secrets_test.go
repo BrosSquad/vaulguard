@@ -73,51 +73,51 @@ func (m *mockSecretService) Delete(applicationID interface{}, key string) error 
 }
 
 func (m *mockSecretService) InvalidateCache(applicationID interface{}) error {
-	panic("implement me")
+	args := m.Called(applicationID)
+
+	return args.Error(0)
+}
+
+func setupSecretApp(service secret.Service, setupMiddleware bool) (*fiber.App, *validator.Validate) {
+	v := validator.New()
+	english := en.New()
+	uni := ut.New(english, english)
+	englishTranslations, _ := uni.GetTranslator("en")
+	app := fiber.New(fiber.Config{
+		ErrorHandler: Error(englishTranslations),
+	})
+	if setupMiddleware {
+		app.Use(func(c *fiber.Ctx) error {
+			c.Locals("application", models.ApplicationDto{
+				ID:        uint(1),
+				Name:      "Test Application",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			})
+			return c.Next()
+		})
+		RegisterSecretHandlers(v, service, app.Group("/secrets"))
+	}
+	return app, v
+}
+
+func createMockService() *mockSecretService {
+	return &mockSecretService{
+		Id:      0,
+		Mutex:   &sync.RWMutex{},
+		IdMutex: &sync.Mutex{},
+		Data:    make([]models.Secret, 0),
+	}
 }
 
 func TestCreateSecret(t *testing.T) {
 	t.Parallel()
 	asserts := require.New(t)
-	v := validator.New()
-	english := en.New()
-	uni := ut.New(english, english)
-	englishTranslations, found := uni.GetTranslator("en")
-
-	asserts.True(found)
-
-	createMockService := func() *mockSecretService {
-		return &mockSecretService{
-			Id:      0,
-			Mutex:   &sync.RWMutex{},
-			IdMutex: &sync.Mutex{},
-			Data:    make([]models.Secret, 0),
-		}
-	}
-
-	setup := func(service secret.Service, setupMiddleware bool) *fiber.App {
-		app := fiber.New(fiber.Config{
-			ErrorHandler: Error(englishTranslations),
-		})
-		if setupMiddleware {
-			app.Use(func(c *fiber.Ctx) error {
-				c.Locals("application", models.ApplicationDto{
-					ID:        uint(1),
-					Name:      "Test Application",
-					CreatedAt: time.Now(),
-					UpdatedAt: time.Now(),
-				})
-				return c.Next()
-			})
-			RegisterSecretHandlers(v, service, app.Group("/secrets"))
-		}
-		return app
-	}
 
 	t.Run("InsertSuccess", func(t *testing.T) {
 		service := createMockService()
 		service.On("Create", uint(1), "Test", "Test").Return(nil)
-		app := setup(service, true)
+		app, _ := setupSecretApp(service, true)
 
 		data, err := json.Marshal(struct {
 			Key   string
@@ -136,10 +136,25 @@ func TestCreateSecret(t *testing.T) {
 		asserts.EqualValues(1, service.Id)
 	})
 
+	t.Run("InvalidJsonPayload", func(t *testing.T) {
+		service := createMockService()
+		service.On("Create", uint(1), "Test", "Test").Return(errors.New("insert error"))
+		app, _ := setupSecretApp(service, true)
+		buff := bytes.NewBuffer([]byte(`{ \"key\": "test", value: "test" }`))
+
+		req := httptest.NewRequest(http.MethodPost, "/secrets", buff)
+		req.Header.Add(fiber.HeaderContentType, fiber.MIMEApplicationJSONCharsetUTF8)
+
+		res, err := app.Test(req, 400)
+		asserts.Nil(err)
+		asserts.EqualValues(http.StatusBadRequest, res.StatusCode)
+
+	})
+
 	t.Run("InsertFailed", func(t *testing.T) {
 		service := createMockService()
 		service.On("Create", uint(1), "Test", "Test").Return(errors.New("insert error"))
-		app := setup(service, true)
+		app, _ := setupSecretApp(service, true)
 
 		data, err := json.Marshal(struct {
 			Key   string
@@ -160,7 +175,7 @@ func TestCreateSecret(t *testing.T) {
 
 	t.Run("ValidationError", func(t *testing.T) {
 		service := createMockService()
-		app := setup(service, true)
+		app, _ := setupSecretApp(service, true)
 
 		data, err := json.Marshal(struct {
 			Key   string
@@ -192,7 +207,7 @@ func TestCreateSecret(t *testing.T) {
 		defer os.Remove(path)
 		db, err := gorm.Open(sqlite.Open(path), &gorm.Config{})
 		asserts.Nil(err)
-		asserts.Nil(db.AutoMigrate(&models.Application{},&models.Token{},&models.Secret{}))
+		asserts.Nil(db.AutoMigrate(&models.Application{}, &models.Token{}, &models.Secret{}))
 		service := secret.NewGormSecretStorage(secret.GormSecretConfig{
 			Encryption: encryption,
 			CacheSize:  10,
@@ -200,7 +215,7 @@ func TestCreateSecret(t *testing.T) {
 		})
 		applicationDto, err := application.NewSqlService(db).Create("TestApplication")
 		asserts.Nil(err)
-		app := setup(service, false)
+		app, v := setupSecretApp(service, false)
 		app.Use(func(c *fiber.Ctx) error {
 			c.Locals("application", applicationDto)
 			return c.Next()
@@ -220,8 +235,8 @@ func TestCreateSecret(t *testing.T) {
 		asserts.Nil(err)
 		asserts.Equal(fiber.StatusCreated, res.StatusCode)
 		payload := struct {
-			ID uint `json:"id"`
-			Key string `json:"key"`
+			ID    uint   `json:"id"`
+			Key   string `json:"key"`
 			Value string `json:"value"`
 		}{}
 		err = json.NewDecoder(res.Body).Decode(&payload)
@@ -229,6 +244,29 @@ func TestCreateSecret(t *testing.T) {
 		asserts.NotEqual(0, payload.ID)
 		asserts.Equal("Test", payload.Key)
 		asserts.Equal("Test", payload.Value)
+	})
+
+}
+
+func TestInvalidateCache(t *testing.T) {
+	t.Parallel()
+	asserts := require.New(t)
+	t.Run("SuccessfulCacheDelete", func(t *testing.T) {
+		service := createMockService()
+		service.On("InvalidateCache", uint(1)).Return(nil)
+		app, _ := setupSecretApp(service, true)
+		res, err := app.Test(httptest.NewRequest(http.MethodDelete, "/secrets/invalidate", nil))
+		asserts.Nil(err)
+		asserts.EqualValues(fiber.StatusNoContent, res.StatusCode)
+	})
+
+	t.Run("ErrorWhileDeletingCache", func(t *testing.T) {
+		service := createMockService()
+		service.On("InvalidateCache", uint(1)).Return(errors.New("cannot delete cache"))
+		app, _ := setupSecretApp(service, true)
+		res, err := app.Test(httptest.NewRequest(http.MethodDelete, "/secrets/invalidate", nil))
+		asserts.Nil(err)
+		asserts.EqualValues(fiber.StatusInternalServerError, res.StatusCode)
 	})
 
 }
