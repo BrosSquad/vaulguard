@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"github.com/BrosSquad/vaulguard/services/application"
 	"github.com/BrosSquad/vaulguard/services/secret"
 	"github.com/BrosSquad/vaulguard/services/token"
@@ -17,15 +18,15 @@ var (
 	rootCmd *cobra.Command
 )
 
-func parseCommands() error {
+func parseCommands(ctx context.Context) error {
 	rootCmd = &cobra.Command{
 		Use:   "vaulguard",
 		Short: "VaulGuard CLI",
 		Long:  "Command line interface for VaulGuard secret storage",
 	}
 
-	rootCmd.AddCommand(applicationCommands())
-	rootCmd.AddCommand(tokenCommands())
+	rootCmd.AddCommand(applicationCommands(ctx))
+	rootCmd.AddCommand(tokenCommands(ctx))
 
 	return rootCmd.Execute()
 }

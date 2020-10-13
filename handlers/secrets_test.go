@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/json"
 	"errors"
@@ -195,6 +196,7 @@ func TestCreateSecret(t *testing.T) {
 	})
 
 	t.Run("GormIntegrationTest", func(t *testing.T) {
+		ctx := context.Background()
 		asserts := require.New(t)
 		key := make([]byte, services.SecretKeyLength)
 		n, err := rand.Read(key)
@@ -213,7 +215,7 @@ func TestCreateSecret(t *testing.T) {
 			CacheSize:  10,
 			DB:         db,
 		})
-		applicationDto, err := application.NewSqlService(db).Create("TestApplication")
+		applicationDto, err := application.NewSqlService(db).Create(ctx, "TestApplication")
 		asserts.Nil(err)
 		app, v := setupSecretApp(service, false)
 		app.Use(func(c *fiber.Ctx) error {

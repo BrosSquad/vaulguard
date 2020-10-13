@@ -16,48 +16,49 @@ func RegisterApplicationHandlers(service application.Service, r fiber.Router) {
 	r.Delete("/:id", deleteApplication(service))
 }
 
-func getApplications(service application.Service) func(ctx *fiber.Ctx) error {
-	return func(ctx *fiber.Ctx) error {
-		page := ctx.Locals("page").(int)
-		perPage := ctx.Locals("perPage").(int)
-		apps, err := service.Get(page, perPage)
+func getApplications(service application.Service) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		ctx := c.Context()
+		page := c.Locals("page").(int)
+		perPage := c.Locals("perPage").(int)
+		apps, err := service.Get(ctx, page, perPage)
 
 		if err != nil {
 			return fiber.ErrInternalServerError
 		}
 
-		return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
 			"data": apps,
 		})
 	}
 }
 
-func getApplication(service application.Service) func(ctx *fiber.Ctx) error {
-	return func(ctx *fiber.Ctx) error {
+func getApplication(service application.Service) fiber.Handler {
+	return func(c *fiber.Ctx) error {
 		return nil
 	}
 }
 
-func searchApplications(service application.Service) func(ctx *fiber.Ctx) error {
-	return func(ctx *fiber.Ctx) error {
+func searchApplications(service application.Service) fiber.Handler {
+	return func(c *fiber.Ctx) error {
 		return nil
 	}
 }
 
-func createApplication(service application.Service) func(ctx *fiber.Ctx) error {
-	return func(ctx *fiber.Ctx) error {
+func createApplication(service application.Service) fiber.Handler {
+	return func(c *fiber.Ctx) error {
 		return nil
 	}
 }
 
-func updateApplication(service application.Service) func(ctx *fiber.Ctx) error {
-	return func(ctx *fiber.Ctx) error {
+func updateApplication(service application.Service) fiber.Handler {
+	return func(c *fiber.Ctx) error {
 		return nil
 	}
 }
 
-func deleteApplication(service application.Service) func(ctx *fiber.Ctx) error {
-	return func(ctx *fiber.Ctx) error {
+func deleteApplication(service application.Service) fiber.Handler {
+	return func(c *fiber.Ctx) error {
 		return nil
 	}
 }

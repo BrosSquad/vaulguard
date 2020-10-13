@@ -1,8 +1,10 @@
 package application
 
 import (
+	"context"
 	"errors"
 	"github.com/BrosSquad/vaulguard/models"
+	"github.com/BrosSquad/vaulguard/services"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -25,16 +27,18 @@ func TestApplicationService(t *testing.T) {
 	service := NewSqlService(conn)
 
 	t.Run("ListApplications", func(t *testing.T) {
+		ctx := context.Background()
 		conn.Create(&models.Application{Name: "List App"})
-		service.List(func(dtos []models.ApplicationDto) error {
+		asserts.Nil(service.List(ctx, func(dtos []models.ApplicationDto) error {
 			asserts.Len(dtos, 1)
 			asserts.EqualValues("List App", dtos[0].Name)
 			return nil
-		})
+		}))
 	})
 
 	t.Run("CreateApplication", func(t *testing.T) {
-		app, err := service.Create("Test Application")
+		ctx := context.Background()
+		app, err := service.Create(ctx, "Test Application")
 		asserts.Nil(err)
 		asserts.Greater(app.ID, uint(0))
 		asserts.EqualValues("Test Application", app.Name)
@@ -43,42 +47,47 @@ func TestApplicationService(t *testing.T) {
 	})
 
 	t.Run("Create2ApplicationWithSameName", func(t *testing.T) {
-		_, err := service.Create("Test Application 2")
+		ctx := context.Background()
+		_, err := service.Create(ctx, "Test Application 2")
 		asserts.Nil(err)
-		_, err = service.Create("Test Application 2")
+		_, err = service.Create(ctx, "Test Application 2")
 		asserts.NotNil(err)
-		//asserts.True(err == services.ErrAlreadyExists)
+		asserts.True(errors.Is(err, services.ErrAlreadyExists))
 	})
 
 	t.Run("DeleteApplication", func(t *testing.T) {
-		app, err := service.Create("Test Application 3")
+		ctx := context.Background()
+		app, err := service.Create(ctx, "Test Application 3")
 		asserts.Nil(err)
-		asserts.Nil(service.Delete(app.ID))
+		asserts.Nil(service.Delete(ctx, app.ID))
 	})
 
 	t.Run("UpdateApplication", func(t *testing.T) {
-		app, err := service.Create("Test Application 4")
+		ctx := context.Background()
+		app, err := service.Create(ctx, "Test Application 4")
 		asserts.Nil(err)
 		asserts.EqualValues("Test Application 4", app.Name)
-		app, err = service.Update(app.ID, "Changed Name")
+		app, err = service.Update(ctx, app.ID, "Changed Name")
 		asserts.Nil(err)
 		asserts.EqualValues("Changed Name", app.Name)
 	})
 
 	t.Run("UpdateApplicationNotFound", func(t *testing.T) {
-		_, err := service.Update(uint(152000), "New Name")
+		ctx := context.Background()
+		_, err := service.Update(ctx, uint(152000), "New Name")
 		asserts.NotNil(err)
 		asserts.True(errors.Is(err, gorm.ErrRecordNotFound))
 	})
 
 	t.Run("GetByName", func(t *testing.T) {
+		ctx := context.Background()
 		appNames := []string{"Test App1", "Test App2", "Test App3"}
 		for _, appName := range appNames {
-			_, err := service.Create(appName)
+			_, err := service.Create(ctx, appName)
 			asserts.Nil(err)
 		}
 
-		app, err := service.GetByName("Test App2")
+		app, err := service.GetByName(ctx, "Test App2")
 		asserts.Nil(err)
 		asserts.Greater(app.ID, uint(0))
 		asserts.EqualValues("Test App2", app.Name)
@@ -87,11 +96,12 @@ func TestApplicationService(t *testing.T) {
 	})
 
 	t.Run("GetOne", func(t *testing.T) {
+		ctx := context.Background()
 		var app models.ApplicationDto
 		appNames := []string{"Test GetOne App1", "Test GetOne App2", "Test GetOne App3"}
 		randomInt := rand.Int31n(int32(len(appNames)))
 		for i, appName := range appNames {
-			a, err := service.Create(appName)
+			a, err := service.Create(ctx, appName)
 			asserts.Nil(err)
 
 			if randomInt == int32(i) {
@@ -99,7 +109,7 @@ func TestApplicationService(t *testing.T) {
 			}
 		}
 
-		a, err := service.GetOne(app.ID)
+		a, err := service.GetOne(ctx, app.ID)
 		asserts.Nil(err)
 		asserts.Greater(a.ID, uint(0))
 		asserts.EqualValues(app.Name, a.Name)
@@ -108,20 +118,22 @@ func TestApplicationService(t *testing.T) {
 	})
 
 	t.Run("GetOneNotFound", func(t *testing.T) {
-		_, err := service.GetOne(uint(152000))
+		ctx := context.Background()
+		_, err := service.GetOne(ctx, uint(152000))
 		asserts.NotNil(err)
 		asserts.True(errors.Is(err, gorm.ErrRecordNotFound))
 	})
 
 	t.Run("Get", func(t *testing.T) {
+		ctx := context.Background()
 		asserts.Nil(conn.Delete(&models.Application{}, " 1 = 1").Error)
 		appNames := []string{"Test Get App1", "Test Get App2", "Test Get App3", "Test Get App4"}
 		for _, appName := range appNames {
-			_, err := service.Create(appName)
+			_, err := service.Create(ctx, appName)
 			asserts.Nil(err)
 		}
 
-		apps, err := service.Get(1, 3)
+		apps, err := service.Get(ctx, 1, 3)
 		asserts.Nil(err)
 		asserts.Len(apps, 3)
 
@@ -134,14 +146,15 @@ func TestApplicationService(t *testing.T) {
 	})
 
 	t.Run("GetSecondPage", func(t *testing.T) {
+		ctx := context.Background()
 		asserts.Nil(conn.Delete(&models.Application{}, " 1 = 1").Error)
 		appNames := []string{"Test Get App1", "Test Get App2", "Test Get App3", "Test Get App4"}
 		for _, appName := range appNames {
-			_, err := service.Create(appName)
+			_, err := service.Create(ctx, appName)
 			asserts.Nil(err)
 		}
 
-		apps, err := service.Get(2, 3)
+		apps, err := service.Get(ctx, 2, 3)
 		asserts.Nil(err)
 		asserts.Len(apps, 1)
 
@@ -154,14 +167,15 @@ func TestApplicationService(t *testing.T) {
 	})
 
 	t.Run("GetWithNegativePageAndPerPage", func(t *testing.T) {
+		ctx := context.Background()
 		asserts.Nil(conn.Delete(&models.Application{}, " 1 = 1").Error)
 		appNames := []string{"Test Get App1", "Test Get App2", "Test Get App3", "Test Get App4"}
 		for _, appName := range appNames {
-			_, err := service.Create(appName)
+			_, err := service.Create(ctx, appName)
 			asserts.Nil(err)
 		}
 
-		apps, err := service.Get(-1, -3)
+		apps, err := service.Get(ctx, -1, -3)
 		asserts.Nil(err)
 		asserts.Len(apps, 3)
 
