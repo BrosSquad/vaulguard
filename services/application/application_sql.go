@@ -83,28 +83,31 @@ func (s sqlService) Create(name string) (models.ApplicationDto, error) {
 }
 
 func (s sqlService) Get(page, perPage int) ([]models.ApplicationDto, error) {
-	apps := make([]models.Application, 0, perPage)
 	if page < 0 {
 		page *= -1
 	}
 
-	tx := s.db.Limit(perPage).Offset((page - 1) * perPage).Find(&apps)
+	if perPage < 0 {
+		perPage *= -1
+	}
 
-	if tx.Error != nil {
-		return nil, tx.Error
+	apps := make([]models.Application, 0, perPage)
+
+	if err := s.db.Limit(perPage).Offset((page - 1) * perPage).Find(&apps).Error; err != nil {
+		return nil, err
 	}
 
 	appsLen := len(apps)
 
-	appsDto := make([]models.ApplicationDto, appsLen)
+	appsDto := make([]models.ApplicationDto, 0, appsLen)
 
-	for i := 0; i < appsLen; i++ {
-		appsDto[i] = models.ApplicationDto{
-			ID:        apps[i].ID,
-			Name:      apps[i].Name,
-			CreatedAt: apps[i].CreatedAt,
-			UpdatedAt: apps[i].UpdatedAt,
-		}
+	for _, app := range apps {
+		appsDto = append(appsDto, models.ApplicationDto{
+			ID:        app.ID,
+			Name:      app.Name,
+			CreatedAt: app.CreatedAt,
+			UpdatedAt: app.UpdatedAt,
+		})
 	}
 
 	return appsDto, nil
@@ -113,10 +116,8 @@ func (s sqlService) Get(page, perPage int) ([]models.ApplicationDto, error) {
 func (s sqlService) GetOne(id interface{}) (models.ApplicationDto, error) {
 	app := models.Application{}
 
-	tx := s.db.Find(&app, id.(uint))
-
-	if tx.Error != nil {
-		return models.ApplicationDto{}, tx.Error
+	if err := s.db.First(&app, id.(uint)).Error; err != nil {
+		return models.ApplicationDto{}, err
 	}
 
 	return models.ApplicationDto{
@@ -130,18 +131,14 @@ func (s sqlService) GetOne(id interface{}) (models.ApplicationDto, error) {
 func (s sqlService) Update(id interface{}, name string) (models.ApplicationDto, error) {
 	app := models.Application{}
 
-	tx := s.db.First(&app, id)
-
-	if tx.Error != nil {
-		return models.ApplicationDto{}, tx.Error
+	if err := s.db.First(&app, id).Error; err != nil {
+		return models.ApplicationDto{}, err
 	}
 
 	app.Name = name
 
-	tx = s.db.Save(&app)
-
-	if tx.Error != nil {
-		return models.ApplicationDto{}, tx.Error
+	if err := s.db.Save(&app).Error; err != nil {
+		return models.ApplicationDto{}, err
 	}
 
 	return models.ApplicationDto{
