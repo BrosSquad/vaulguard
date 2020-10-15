@@ -8,6 +8,7 @@ import (
 )
 
 func TestSecretKeyService(t *testing.T) {
+	t.Parallel()
 	key := make([]byte, 32)
 
 	_, err := rand.Read(key)
@@ -64,6 +65,7 @@ func TestSecretKeyService(t *testing.T) {
 }
 
 func TestPublicKeyService(t *testing.T) {
+	t.Parallel()
 	public, private, err := box.GenerateKey(rand.Reader)
 
 	if err != nil {
