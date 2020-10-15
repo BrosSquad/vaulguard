@@ -17,6 +17,7 @@ import (
 )
 
 func TestSqliteToken(t *testing.T) {
+	t.Parallel()
 	conn, err := gorm.Open(sqlite.Open("token_test.db"), &gorm.Config{})
 	db, _ := conn.DB()
 	defer os.Remove("token_test.db")
@@ -53,6 +54,7 @@ func TestSqliteToken(t *testing.T) {
 }
 
 func TestMongoToken(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	mongoURI := os.Getenv("VAULGUARD_MONGO_TESTING")
 	client, err := mongo.NewClient(options.Client().ApplyURI(mongoURI))

@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"github.com/BrosSquad/vaulguard/cmd"
 	"github.com/BrosSquad/vaulguard/services/application"
 	"github.com/BrosSquad/vaulguard/services/secret"
 	"github.com/BrosSquad/vaulguard/services/token"
 	"github.com/spf13/cobra"
+	"log"
 )
 
 var (
@@ -18,20 +20,37 @@ var (
 	rootCmd *cobra.Command
 )
 
-func parseCommands(ctx context.Context) error {
+func createTokenCommand(tc cmd.Command, command *cobra.Command) *cobra.Command {
+	create := &cobra.Command{
+		Use:  "create",
+		Long: "Create new token for application",
+		Args: cobra.MinimumNArgs(1),
+		RunE: tc.Execute,
+	}
+	command.AddCommand(create)
+
+	return command
+}
+
+func main() {
+	ctx := context.Background()
 	rootCmd = &cobra.Command{
 		Use:   "vaulguard",
 		Short: "VaulGuard CLI",
 		Long:  "Command line interface for VaulGuard secret storage",
 	}
 
+	rootCmd.AddCommand(createTokenCommand(
+		cmd.NewTokenCommand(ctx, applicationService, tokenService),
+		&cobra.Command{
+			Use: "token",
+		},
+	))
+
 	rootCmd.AddCommand(applicationCommands(ctx))
-	rootCmd.AddCommand(tokenCommands(ctx))
-
-	return rootCmd.Execute()
-}
-
-func main() {
+	if err := rootCmd.Execute(); err != nil {
+		log.Fatalf("Command error: %v", err)
+	}
 	//cfg, err := config.NewConfig(true)
 	//
 	//if err != nil {
