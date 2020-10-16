@@ -5,6 +5,7 @@ import (
 	"github.com/go-yaml/yaml"
 	"io"
 	"io/ioutil"
+	"time"
 )
 
 var (
@@ -14,6 +15,8 @@ var (
 	ErrAddressEmpty          = errors.New("http address is required")
 	ErrPrivateKeyEmpty       = errors.New("private key is required")
 	ErrPublicKeyEmpty        = errors.New("public key is required")
+	ErrLocaleNotFound        = errors.New("locale is required for validation")
+	ErrMemoryUsageSleepEmpty = errors.New("memory usage sleep is required")
 )
 
 type (
@@ -38,19 +41,26 @@ type (
 	}
 
 	Databases struct {
-		Mongo Mongo `yaml:"mongo"`
-		SQL   Sql   `yaml:"sql"`
+		Mongo Mongo `yaml:"mongo,omitempty"`
+		SQL   Sql   `yaml:"sql,omitempty"`
+	}
+
+	MemoryUsage struct {
+		Report bool          `yaml:"report,omitempty"`
+		Sleep  time.Duration `yaml:"sleep,omitempty"`
 	}
 
 	Config struct {
-		ApplicationKey []byte    `yaml:"-"`
-		UseConsole     bool      `yaml:"console,omitempty"`
-		Debug          bool      `yaml:"debug,omitempty"`
-		UseSql         bool      `yaml:"sql,omitempty"`
-		Http           Http      `yaml:"http"`
-		Keys           Keys      `yaml:"keys"`
-		Logging        Logging   `yaml:"log"`
-		Databases      Databases `yaml:"databases"`
+		ApplicationKey []byte      `yaml:"-"`
+		Locale         string      `yaml:"locale,omitempty"`
+		UseConsole     bool        `yaml:"console,omitempty"`
+		Debug          bool        `yaml:"debug,omitempty"`
+		UseSql         bool        `yaml:"sql,omitempty"`
+		Http           Http        `yaml:"http,omitempty"`
+		Keys           Keys        `yaml:"keys,omitempty"`
+		Logging        Logging     `yaml:"log,omitempty"`
+		Databases      Databases   `yaml:"databases,omitempty"`
+		MemoryUsage    MemoryUsage `yaml:"memory,omitempty"`
 	}
 )
 
@@ -80,6 +90,13 @@ func (c Config) Validate() error {
 		return ErrPublicKeyEmpty
 	}
 
+	if c.Locale == "" {
+		return ErrLocaleNotFound
+	}
+
+	if c.MemoryUsage.Report && c.MemoryUsage.Sleep == 0 {
+		return ErrMemoryUsageSleepEmpty
+	}
 	return nil
 }
 
