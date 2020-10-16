@@ -5,6 +5,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 
 	"github.com/BrosSquad/vaulguard/config"
 	"github.com/BrosSquad/vaulguard/services"
@@ -14,7 +15,7 @@ import (
 const DefaultKeysPermission = 0700
 
 func generateKeyPair(privateKeyPath, publicKeyPath string, create bool) (services.Encryption, error) {
-	if err := utils.CreateDirs(DefaultKeysPermission, privateKeyPath, publicKeyPath); err != nil {
+	if err := utils.CreateDirs(DefaultKeysPermission, filepath.Dir(privateKeyPath), filepath.Dir(publicKeyPath)); err != nil {
 		return nil, err
 	}
 	flags := os.O_RDWR | os.O_CREATE
@@ -47,7 +48,7 @@ func generateKeyPair(privateKeyPath, publicKeyPath string, create bool) (service
 }
 
 func getSecretKey(service services.Encryption, secretKeyPath string, secretKeyExists bool) ([]byte, error) {
-	if err := utils.CreateDirs(DefaultKeysPermission, secretKeyPath); err != nil {
+	if err := utils.CreateDirs(DefaultKeysPermission, filepath.Dir(secretKeyPath)); err != nil {
 		return nil, err
 	}
 

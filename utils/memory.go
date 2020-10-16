@@ -8,13 +8,13 @@ import (
 	"github.com/BrosSquad/vaulguard/log"
 )
 
-func MemoryUsage(ctx context.Context, logger *log.Logger) {
+func MemoryUsage(ctx context.Context, sleep time.Duration, logger *log.Logger) {
 	var m runtime.MemStats
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case timer := <-time.After(30 * time.Second):
+		case timer := <-time.After(sleep):
 			runtime.ReadMemStats(&m)
 			year, month, day := timer.Date()
 			hour := timer.Hour()

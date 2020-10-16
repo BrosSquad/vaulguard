@@ -8,10 +8,15 @@ import (
 	"io"
 	"log"
 	"os"
+	"os/signal"
 
 	"github.com/go-playground/locales/en"
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/pprof"
+	"go.mongodb.org/mongo-driver/mongo"
+	"gorm.io/gorm"
 
 	"github.com/BrosSquad/vaulguard/api"
 	"github.com/BrosSquad/vaulguard/config"
@@ -20,12 +25,7 @@ import (
 	vaulguardlog "github.com/BrosSquad/vaulguard/log"
 	"github.com/BrosSquad/vaulguard/services"
 	"github.com/BrosSquad/vaulguard/utils"
-	"github.com/gofiber/fiber/v2"
-	"go.mongodb.org/mongo-driver/mongo"
-	"gorm.io/gorm"
 )
-
-const locale = "en"
 
 func createConfig(configPath string, port int) (*config.Config, error) {
 	var err error
@@ -68,6 +68,7 @@ func main() {
 	var applicationCollection *mongo.Collection
 	var closer io.Closer
 
+	signalCh := make(chan os.Signal, 1)
 	configPath := flag.String("config", "./config.yml", "Path to config file")
 	port := flag.Int("port", 0, "Default port, overrides usage from config")
 
@@ -90,8 +91,14 @@ func main() {
 
 	cfg.ApplicationKey = key
 
-	// TODO: Handle os Signals
 	ctx, cancel := context.WithCancel(context.Background())
+	signal.Notify(signalCh, os.Interrupt)
+	go func(cancel context.CancelFunc) {
+		select {
+		case <-signalCh:
+			cancel()
+		}
+	}(cancel)
 
 	if cfg.UseSql {
 		sqlDb, closer, err = connectToRelationalDatabaseAndMigrate(logger, cfg)
@@ -120,16 +127,24 @@ func main() {
 	v := validator.New()
 	english := en.New()
 	uni := ut.New(english, english)
-	englishTranslations, found := uni.GetTranslator(locale)
+	englishTranslations, found := uni.GetTranslator(cfg.Locale)
 
 	if !found {
-		logger.Fatalf(errors.New("locale not found"), "No translations found for locale %s", locale)
+		logger.Fatalf(errors.New("locale not found"), "No translations found for locale %s", cfg.Locale)
 	}
 
 	app := fiber.New(fiber.Config{
 		Prefork:      cfg.Http.Prefork,
 		ErrorHandler: handlers.Error(englishTranslations),
 	})
+
+	if cfg.Debug {
+		logger.Debug("Adding pprof routes\n")
+		app.Use(pprof.New())
+		if cfg.MemoryUsage.Report {
+			go utils.MemoryUsage(ctx, cfg.MemoryUsage.Sleep, logger)
+		}
+	}
 
 	fiberAPI := api.Fiber{
 		Ctx:                   ctx,
@@ -147,11 +162,21 @@ func main() {
 
 	fiberAPI.RegisterHandlers()
 
-	go utils.MemoryUsage(ctx, logger)
+	go func() {
+		logger.Debug("Start to listen on: %s\n", cfg.Http.Address)
+		logger.Debug("Preforking? %v", cfg.Http.Prefork)
+		if err := app.Listen(cfg.Http.Address); err != nil {
+			logger.Fatalf(err, "Error while starting http server\n")
+		}
+	}()
 
-	if err := app.Listen(cfg.Http.Address); err != nil {
-		logger.Fatalf(err, "Error while starting http server\n")
+	select {
+	case <-ctx.Done():
+		logger.Debug("Shutting down application...\n")
+		if err := app.Shutdown(); err != nil {
+			logger.Fatalf(err, "Error while shutting down the api\n")
+		}
+		logger.Debug("Exiting...\n")
 	}
 
-	cancel()
 }

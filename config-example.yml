@@ -1,0 +1,29 @@
+sql: true # Set SQL as main secret storage, if this is set to false, mongodb uri is required
+console: true # Console logging
+debug: true # Debug enables PProf
+locale: en # VaulGuard Server validation locale
+memory:
+  # Reports memory usage overtime to console
+  # This works only if debug is turned on
+  report: true
+  sleep: 30s
+databases:
+  # Storage engines - SQL and NoSQL(Mongo)
+  # There is not partial data storage support
+  sql:
+    provider: sqlite # supported drivers - sqlite, postgres, mysql
+    dsn: ./vauguard.db
+  mongo:
+    uri: mongodb://localhost:27017
+logging:
+  level: info # supported logging - debug, info, warning, error
+http:
+  prefork: false
+  address: :4000 # HTTP Address
+keys:
+  # If Directory does not exist, vaulguard will try to create it along with keys
+  # Watch out!!! If you lose keys or change directory key keys will be generated
+  # and secrets will be lost
+  private: ./keys/private.key # Path to EdDSA (Ed25519) private key
+  public: ./keys/public.key # Path to EdDSA (Ed25519) public key
+  secret: ./keys/secret.key # Path to XChaCha20Poly1305 secret key

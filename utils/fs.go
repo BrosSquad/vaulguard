@@ -25,6 +25,7 @@ func FileExists(filename string) bool {
 	}
 	return !info.IsDir()
 }
+
 func DirExists(filename string) bool {
 	info, err := os.Stat(filename)
 	if os.IsNotExist(err) {
@@ -35,9 +36,8 @@ func DirExists(filename string) bool {
 
 func CreateDirs(permission os.FileMode, paths ...string) error {
 	for _, p := range paths {
-		dir := filepath.Dir(p)
-		if !DirExists(dir) {
-			if err := os.MkdirAll(dir, permission); err != nil {
+		if !DirExists(p) {
+			if err := os.MkdirAll(p, permission); err != nil {
 				return err
 			}
 		}
