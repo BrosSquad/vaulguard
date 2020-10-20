@@ -57,6 +57,9 @@ func TestMongoToken(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	mongoURI := os.Getenv("VAULGUARD_MONGO_TESTING")
+	if mongoURI == "" {
+		mongoURI = "mongodb://localhost:27017"
+	}
 	client, err := mongo.NewClient(options.Client().ApplyURI(mongoURI))
 
 	if err != nil {
