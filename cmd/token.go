@@ -41,4 +41,3 @@ func NewTokenCommand(ctx context.Context, applicationService application.Service
 		tokenService:       tokenService,
 	}
 }
-

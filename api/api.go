@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"github.com/gofiber/session/v2"
 
 	"github.com/BrosSquad/vaulguard/handlers"
 	"github.com/BrosSquad/vaulguard/log"
@@ -33,6 +34,7 @@ type Fiber struct {
 	SecretService      secret.Service
 	Logger             *log.Logger
 	Validator          *validator.Validate
+	Session            *session.Session
 }
 
 func (f Fiber) RegisterHandlers() {
@@ -55,6 +57,7 @@ func (f Fiber) registerSecrets() {
 		Headers:        []string{"authorization"},
 		HeaderPrefixes: []string{"token "},
 	}))
+
 	handlers.RegisterSecretHandlers(f.Validator, f.SecretService, secretsGroup)
 
 	f.Logger.Debug("SECRET routes added.")

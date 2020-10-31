@@ -5,18 +5,18 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
-	"log"
-	"os"
-	"os/signal"
-
 	"github.com/go-playground/locales/en"
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/pprof"
+	"github.com/gofiber/session/v2"
 	"go.mongodb.org/mongo-driver/mongo"
 	"gorm.io/gorm"
+	"io"
+	"log"
+	"os"
+	"os/signal"
 
 	"github.com/BrosSquad/vaulguard/api"
 	"github.com/BrosSquad/vaulguard/config"
@@ -27,9 +27,7 @@ import (
 	"github.com/BrosSquad/vaulguard/utils"
 )
 
-func createConfig(configPath string, port int) (*config.Config, error) {
-	var err error
-
+func createConfig(configPath string, port int) (cfg *config.Config, err error) {
 	configPath, err = utils.GetAbsolutePath(configPath)
 
 	if err != nil {
@@ -42,7 +40,7 @@ func createConfig(configPath string, port int) (*config.Config, error) {
 		return nil, err
 	}
 
-	cfg, err := config.NewConfig(cfgFile)
+	cfg, err = config.New(cfgFile)
 
 	if err != nil {
 		return nil, err
@@ -60,13 +58,16 @@ func createConfig(configPath string, port int) (*config.Config, error) {
 }
 
 func main() {
-	var sqlDb *gorm.DB
-	var mongoClient *mongo.Client
-	var mongoDatabase *mongo.Database
-	var tokenCollection *mongo.Collection
-	var secretCollection *mongo.Collection
-	var applicationCollection *mongo.Collection
-	var closer io.Closer
+	var (
+		sqlDb                 *gorm.DB
+		mongoClient           *mongo.Client
+		mongoDatabase         *mongo.Database
+		tokenCollection       *mongo.Collection
+		secretCollection      *mongo.Collection
+		applicationCollection *mongo.Collection
+		httpSession           *session.Session
+		closer                io.Closer
+	)
 
 	signalCh := make(chan os.Signal, 1)
 	configPath := flag.String("config", "./config.yml", "Path to config file")
@@ -146,6 +147,10 @@ func main() {
 		}
 	}
 
+	if cfg.UseDashboard {
+		httpSession = createHttpSession(cfg)
+	}
+
 	fiberAPI := api.Fiber{
 		Ctx:                   ctx,
 		Cfg:                   cfg,
@@ -158,6 +163,7 @@ func main() {
 		TokenService:          createTokenService(ctx, sqlDb, tokenCollection, cfg.UseSql),
 		Logger:                logger,
 		Validator:             v,
+		Session:               httpSession,
 	}
 
 	fiberAPI.RegisterHandlers()
@@ -170,13 +176,11 @@ func main() {
 		}
 	}()
 
-	select {
-	case <-ctx.Done():
-		logger.Debug("Shutting down application...\n")
-		if err := app.Shutdown(); err != nil {
-			logger.Fatalf(err, "Error while shutting down the api\n")
-		}
-		logger.Debug("Exiting...\n")
+	<-ctx.Done()
+	logger.Debug("Shutting down application...\n")
+	if err := app.Shutdown(); err != nil {
+		logger.Fatalf(err, "Error while shutting down the api\n")
 	}
+	logger.Debug("Exiting...\n")
 
 }
