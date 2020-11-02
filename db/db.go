@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"errors"
+	"github.com/BrosSquad/vaulguard/models"
 	"strings"
 	"time"
 
@@ -10,7 +11,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"gorm.io/gorm/logger"
 
-	"github.com/BrosSquad/vaulguard/models"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"gorm.io/driver/postgres"
@@ -19,7 +19,6 @@ import (
 )
 
 var (
-	dbConn                          *gorm.DB
 	ErrDatabaseProviderNotSupported = errors.New("database provider not supported (sqlite, postgres, mysql)")
 )
 
@@ -130,7 +129,7 @@ func MongoCreateCollections(ctx context.Context, client *mongo.Client) error {
 	return nil
 }
 
-func SqlMigrate() error {
+func SqlMigrate(dbConn *gorm.DB) error {
 	dst := []interface{}{
 		&models.Application{},
 		&models.Token{},
@@ -186,28 +185,16 @@ func ConnectToDatabaseProvider(config GormConfig) (_ *gorm.DB, err error) {
 }
 
 // ConnectToPostgres - Connects to the running postgres database instance
-func connectToPostgreSQL(dsn string, config *gorm.Config) (_ *gorm.DB, err error) {
-	dbConn, err = gorm.Open(postgres.New(postgres.Config{
+func connectToPostgreSQL(dsn string, config *gorm.Config) (*gorm.DB, error) {
+	return gorm.Open(postgres.New(postgres.Config{
 		DSN: dsn,
 	}), config)
-	return dbConn, err
 }
 
-func connectToMySQL(dsn string, config *gorm.Config) (_ *gorm.DB, err error) {
-	return dbConn, nil
+func connectToMySQL(dsn string, config *gorm.Config) (*gorm.DB, error) {
+	return nil, nil
 }
 
-func connectToSQLite(dsn string, config *gorm.Config) (_ *gorm.DB, err error) {
-	dbConn, err = gorm.Open(sqlite.Open(dsn), config)
-	return dbConn, err
-}
-
-func Close() error {
-	db, err := dbConn.DB()
-
-	if err != nil {
-		return err
-	}
-
-	return db.Close()
+func connectToSQLite(dsn string, config *gorm.Config) (*gorm.DB, error) {
+	return gorm.Open(sqlite.Open(dsn), config)
 }

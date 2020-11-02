@@ -42,7 +42,7 @@ databases:
 
 		buffer := bytes.NewBufferString(configStr)
 
-		config, err := NewConfig(buffer)
+		config, err := New(buffer)
 
 		if err != nil {
 			t.Fatalf("Error while creating config: %v", err)
@@ -91,7 +91,7 @@ databases:
 `
 		buffer := bytes.NewBufferString(configStr)
 
-		config, err := NewConfig(buffer)
+		config, err := New(buffer)
 
 		asserts.NotNil(err)
 		asserts.Nil(config)
@@ -124,7 +124,7 @@ databases:
 `
 		buffer := bytes.NewBufferString(configStr)
 
-		config, err := NewConfig(buffer)
+		config, err := New(buffer)
 
 		asserts.NotNil(err)
 		asserts.Nil(config)
@@ -158,7 +158,7 @@ databases:
 `
 		buffer := bytes.NewBufferString(configStr)
 
-		config, err := NewConfig(buffer)
+		config, err := New(buffer)
 
 		asserts.NotNil(err)
 		asserts.Nil(config)
@@ -192,7 +192,7 @@ databases:
 `
 		buffer := bytes.NewBufferString(configStr)
 
-		config, err := NewConfig(buffer)
+		config, err := New(buffer)
 
 		asserts.NotNil(err)
 		asserts.Nil(config)
@@ -225,7 +225,7 @@ databases:
 `
 		buffer := bytes.NewBufferString(configStr)
 
-		config, err := NewConfig(buffer)
+		config, err := New(buffer)
 
 		asserts.NotNil(err)
 		asserts.Nil(config)
@@ -259,7 +259,7 @@ databases:
 `
 		buffer := bytes.NewBufferString(configStr)
 
-		config, err := NewConfig(buffer)
+		config, err := New(buffer)
 
 		asserts.NotNil(err)
 		asserts.Nil(config)
@@ -294,7 +294,7 @@ databases:
 `
 		buffer := bytes.NewBufferString(configStr)
 
-		config, err := NewConfig(buffer)
+		config, err := New(buffer)
 
 		asserts.NotNil(err)
 		asserts.Nil(config)
@@ -304,7 +304,7 @@ databases:
 		t.Parallel()
 		asserts := assert.New(t)
 
-		config, err := NewConfig(reader{})
+		config, err := New(reader{})
 		asserts.NotNil(err)
 		asserts.Nil(config)
 	})
@@ -333,7 +333,7 @@ databases:
 `
 		buffer := bytes.NewBufferString(configStr)
 
-		config, err := NewConfig(buffer)
+		config, err := New(buffer)
 
 		asserts.NotNil(err)
 		asserts.Nil(config)
@@ -367,7 +367,7 @@ databases:
 `
 		buffer := bytes.NewBufferString(configStr)
 
-		config, err := NewConfig(buffer)
+		config, err := New(buffer)
 
 		asserts.NotNil(err)
 		asserts.Nil(config)

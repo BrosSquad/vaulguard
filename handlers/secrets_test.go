@@ -6,10 +6,6 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"errors"
-	"github.com/BrosSquad/vaulguard/services"
-	"github.com/BrosSquad/vaulguard/services/application"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -17,6 +13,11 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/BrosSquad/vaulguard/services"
+	"github.com/BrosSquad/vaulguard/services/application"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 
 	"github.com/BrosSquad/vaulguard/models"
 	"github.com/BrosSquad/vaulguard/services/secret"
@@ -29,26 +30,26 @@ import (
 )
 
 type mockSecretService struct {
+	*mock.Mock
 	Id      uint
 	Mutex   *sync.RWMutex
 	IdMutex *sync.Mutex
 	Data    []models.Secret
-	mock.Mock
 }
 
-func (m *mockSecretService) Paginate(applicationID interface{}, page, perPage int) (map[string]string, error) {
+func (m *mockSecretService) Paginate(ctx context.Context, applicationID interface{}, page, perPage int) (map[string]string, error) {
 	panic("implement me")
 }
 
-func (m *mockSecretService) Get(applicationID interface{}, key []string) (map[string]string, error) {
+func (m *mockSecretService) Get(ctx context.Context, applicationID interface{}, key []string) (map[string]string, error) {
 	panic("implement me")
 }
 
-func (m *mockSecretService) GetOne(applicationID interface{}, key string) (secret.Secret, error) {
+func (m *mockSecretService) GetOne(ctx context.Context, applicationID interface{}, key string) (secret.Secret, error) {
 	panic("implement me")
 }
 
-func (m *mockSecretService) Create(applicationID interface{}, key, value string) (models.Secret, error) {
+func (m *mockSecretService) Create(ctx context.Context, applicationID interface{}, key, value string) (models.Secret, error) {
 	args := m.Called(applicationID, key, value)
 
 	if err := args.Error(0); err != nil {
@@ -65,11 +66,11 @@ func (m *mockSecretService) Create(applicationID interface{}, key, value string)
 	return s, nil
 }
 
-func (m *mockSecretService) Update(applicationID interface{}, key, newKey, value string) (models.Secret, error) {
+func (m *mockSecretService) Update(ctx context.Context, applicationID interface{}, key, newKey, value string) (models.Secret, error) {
 	panic("implement me")
 }
 
-func (m *mockSecretService) Delete(applicationID interface{}, key string) error {
+func (m *mockSecretService) Delete(ctx context.Context, applicationID interface{}, key string) error {
 	panic("implement me")
 }
 
