@@ -61,7 +61,7 @@ func applicationCommands(ctx context.Context) *cobra.Command {
 				log.Fatal(err.Error())
 			}
 
-			tokenStr := tokenService.Generate(app.ID)
+			tokenStr := tokenService.Generate(ctx, app.ID)
 
 			if tokenStr == "" {
 				log.Fatal("Error while generating Auth Token")

@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"github.com/BrosSquad/vaulguard/models"
 	"github.com/BrosSquad/vaulguard/services/token"
 	"github.com/gofiber/fiber/v2"
@@ -17,12 +18,12 @@ type mockTokenService struct {
 	mock.Mock
 }
 
-func (m *mockTokenService) Generate(i interface{}) string {
+func (m *mockTokenService) Generate(ctx context.Context, i interface{}) string {
 	args := m.Called(i)
 	return args.String(0)
 }
 
-func (m *mockTokenService) Verify(s string) (models.ApplicationDto, bool) {
+func (m *mockTokenService) Verify(ctx context.Context, s string) (models.ApplicationDto, bool) {
 	args := m.Called(s)
 
 	return args.Get(0).(models.ApplicationDto), args.Bool(1)

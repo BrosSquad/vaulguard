@@ -1,6 +1,7 @@
 package token
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
@@ -15,8 +16,8 @@ import (
 )
 
 type Service interface {
-	Generate(interface{}) string
-	Verify(string) (models.ApplicationDto, bool)
+	Generate(context.Context, interface{}) string
+	Verify(context.Context, string) (models.ApplicationDto, bool)
 }
 
 type service struct {
@@ -27,7 +28,7 @@ func NewService(storage Storage) Service {
 	return service{storage}
 }
 
-func (s service) Generate(applicationId interface{}) string {
+func (s service) Generate(ctx context.Context, applicationId interface{}) string {
 	tokenBytes := make([]byte, 64)
 	_, err := rand.Read(tokenBytes)
 
@@ -37,7 +38,7 @@ func (s service) Generate(applicationId interface{}) string {
 
 	hashed := blake3.Sum512(tokenBytes)
 
-	token, err := s.storage.Create(&models.TokenDto{
+	token, err := s.storage.Create(ctx, &models.TokenDto{
 		ApplicationId: applicationId,
 		Value:         hashed[:],
 		CreatedAt:     time.Now(),
@@ -60,7 +61,7 @@ func (s service) Generate(applicationId interface{}) string {
 	return fmt.Sprintf("VaulGuard.%s.%s", id, base64.RawURLEncoding.EncodeToString(tokenBytes))
 }
 
-func (s service) Verify(token string) (models.ApplicationDto, bool) {
+func (s service) Verify(ctx context.Context, token string) (models.ApplicationDto, bool) {
 	values := strings.Split(token, ".")
 
 	if len(values) != 3 || values[0] != "VaulGuard" {
@@ -86,7 +87,7 @@ func (s service) Verify(token string) (models.ApplicationDto, bool) {
 		id = idObject
 	}
 
-	t, err := s.storage.Get(id)
+	t, err := s.storage.Get(ctx, id)
 
 	if err != nil {
 		return models.ApplicationDto{}, false

@@ -13,7 +13,7 @@ tasks:
     cmds:
       - docker-compose run  --use-aliases -d mongo
       - docker-compose run  --use-aliases -d db
-      - docker run -it --rm --network vaulguard_vaulguard -e GOPATH=/go -e VAULGUARD_MONGO_TESTING="mongodb://mongo:27017/" -v {{.PWD}}:/vaulguard -v vaulguard_go:/go/pkg -w /vaulguard golang:1.15 go test ./...
+      - docker run -it --rm --network vaulguard_vaulguard -e GOPATH=/go -e VAULGUARD_MONGO_TESTING="mongodb://mongo:27017/" -v {{.PWD}}:/vaulguard -v vaulguard_go:/go/pkg -w /vaulguard golang:1.15 go test -v ./...
       - docker ps | grep -P "vaulguard_\w+_run_[a-fA-F0-9]+" | awk '{ print $1 }' | xargs -I '{}' docker rm -f '{}'
   build-image:
     cmds:

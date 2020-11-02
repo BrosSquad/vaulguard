@@ -10,7 +10,7 @@ type mongoService struct {
 	client *mongo.Collection
 }
 
-func (m mongoService) List(ctx context.Context, cb func([]models.ApplicationDto) error) error {
+func (m mongoService) List(ctx context.Context, size int, cb func([]models.ApplicationDto) error) error {
 	panic("implement me")
 }
 

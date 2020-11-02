@@ -29,7 +29,7 @@ func TestApplicationService(t *testing.T) {
 	t.Run("ListApplications", func(t *testing.T) {
 		ctx := context.Background()
 		conn.Create(&models.Application{Name: "List App"})
-		asserts.Nil(service.List(ctx, func(dtos []models.ApplicationDto) error {
+		asserts.Nil(service.List(ctx, 10, func(dtos []models.ApplicationDto) error {
 			asserts.Len(dtos, 1)
 			asserts.EqualValues("List App", dtos[0].Name)
 			return nil

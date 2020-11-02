@@ -17,6 +17,7 @@ import (
 )
 
 func TestSqliteToken(t *testing.T) {
+	ctx := context.Background()
 	t.Parallel()
 	conn, err := gorm.Open(sqlite.Open("token_test.db"), &gorm.Config{})
 	db, _ := conn.DB()
@@ -40,14 +41,14 @@ func TestSqliteToken(t *testing.T) {
 
 	t.Run("Generate", func(t *testing.T) {
 		s := NewService(NewSqlStorage(conn))
-		_ = s.Generate(app.ID)
+		_ = s.Generate(ctx, app.ID)
 	})
 
 	t.Run("Verify", func(t *testing.T) {
 		s := NewService(NewSqlStorage(conn))
-		token := s.Generate(app.ID)
+		token := s.Generate(ctx, app.ID)
 
-		if _, ok := s.Verify(token); !ok {
+		if _, ok := s.Verify(ctx, token); !ok {
 			t.Fatal("Token is not valid")
 		}
 	})
@@ -83,10 +84,10 @@ func TestMongoToken(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	service := NewService(NewMongoStorage(ctx, db.Collection("tokens")))
+	service := NewService(NewMongoStorage(db.Collection("tokens")))
 
 	t.Run("Generate", func(t *testing.T) {
-		token := service.Generate(result.InsertedID)
+		token := service.Generate(ctx, result.InsertedID)
 
 		if token == "" {
 			t.Fatal("Token is not generated")
@@ -100,17 +101,15 @@ func TestMongoToken(t *testing.T) {
 	})
 
 	t.Run("Verify", func(t *testing.T) {
-		token := service.Generate(result.InsertedID)
-
+		token := service.Generate(ctx, result.InsertedID)
 		if token == "" {
 			t.Fatal("Token is not generated")
 		}
 
-		_, isValid := service.Verify(token)
+		_, isValid := service.Verify(ctx, token)
 
 		if !isValid {
 			t.Fatal("Token should be valid")
 		}
-
 	})
 }

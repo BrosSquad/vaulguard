@@ -4,7 +4,6 @@ import (
 	"errors"
 	"github.com/go-yaml/yaml"
 	"io"
-	"io/ioutil"
 	"time"
 )
 
@@ -101,20 +100,12 @@ func (c Config) Validate() error {
 }
 
 func NewConfig(r io.Reader) (*Config, error) {
-	bytes, err := ioutil.ReadAll(r)
-
-	if err != nil {
-		return nil, err
-	}
-
 	config := Config{}
-	if err := yaml.Unmarshal(bytes, &config); err != nil {
+	if err := yaml.NewDecoder(r).Decode(&config); err != nil {
 		return nil, err
 	}
-
 	if err := config.Validate(); err != nil {
 		return nil, err
 	}
-
 	return &config, nil
 }

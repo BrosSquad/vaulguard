@@ -1,6 +1,7 @@
 package secret
 
 import (
+	"context"
 	"github.com/BrosSquad/vaulguard/models"
 	"github.com/BrosSquad/vaulguard/services"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -18,31 +19,31 @@ type MongoDBConfig struct {
 	Collection *mongo.Collection
 }
 
-func (m mongoService) Paginate(applicationID interface{}, page, perPage int) (map[string]string, error) {
+func (m mongoService) Paginate(ctx context.Context, applicationID interface{}, page, perPage int) (map[string]string, error) {
 	panic("implement me")
 }
 
-func (m mongoService) Get(applicationID interface{}, key []string) (map[string]string, error) {
+func (m mongoService) Get(ctx context.Context, applicationID interface{}, key []string) (map[string]string, error) {
 	panic("implement me")
 }
 
-func (m mongoService) GetOne(applicationID interface{}, key string) (Secret, error) {
+func (m mongoService) GetOne(ctx context.Context, applicationID interface{}, key string) (Secret, error) {
 	panic("implement me")
 }
 
-func (m mongoService) Create(applicationID interface{}, key, value string) (models.Secret, error) {
+func (m mongoService) Create(ctx context.Context, applicationID interface{}, key, value string) (models.Secret, error) {
 	panic("implement me")
 }
 
-func (m mongoService) Update(applicationID interface{}, key, newKey, value string) (models.Secret, error) {
+func (m mongoService) Update(ctx context.Context, applicationID interface{}, key, newKey, value string) (models.Secret, error) {
 	panic("implement me")
 }
 
-func (m mongoService) Delete(applicationID interface{}, key string) error {
+func (m mongoService) Delete(ctx context.Context, applicationID interface{}, key string) error {
 	panic("implement me")
 }
 
-func (m mongoService) InvalidateCache(applicationID interface{}) error {
+func (m mongoService) InvalidateCache(ctx context.Context, applicationID interface{}) error {
 	panic("implement me")
 }
 

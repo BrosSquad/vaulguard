@@ -1,6 +1,7 @@
 package secret
 
 import (
+	"context"
 	"crypto/rand"
 	"os"
 	"testing"
@@ -12,6 +13,7 @@ import (
 )
 
 func TestNewGormSecretStorage(t *testing.T) {
+	ctx := context.Background()
 	conn, err := gorm.Open(sqlite.Open("secret_test.db"), &gorm.Config{})
 	db, _ := conn.DB()
 
@@ -40,13 +42,13 @@ func TestNewGormSecretStorage(t *testing.T) {
 
 	t.Run("CreateSecret", func(t *testing.T) {
 		value := "mysql://localhost:3306/database"
-		_, err := service.Create(application.ID, "DATABASE_CONNECTION", value)
+		_, err := service.Create(ctx, application.ID, "DATABASE_CONNECTION", value)
 
 		if err != nil {
 			t.Fatalf("Error while inserting new secret: %v", err)
 		}
 
-		secret, err := service.GetOne(application.ID, "DATABASE_CONNECTION")
+		secret, err := service.GetOne(ctx, application.ID, "DATABASE_CONNECTION")
 
 		if err != nil {
 			t.Fatalf("Error while geting secret: %v", err)
@@ -69,13 +71,13 @@ func TestNewGormSecretStorage(t *testing.T) {
 		}
 
 		for key, value := range secretsMap {
-			_, err := service.Create(application.ID, key, value)
+			_, err := service.Create(ctx, application.ID, key, value)
 			if err != nil {
 				t.Fatal(err)
 			}
 		}
 
-		secrets, err := service.Get(application.ID, []string{"SECRET_1", "SECRET_2", "SECRET_6"})
+		secrets, err := service.Get(ctx, application.ID, []string{"SECRET_1", "SECRET_2", "SECRET_6"})
 
 		if err != nil {
 			t.Fatalf("Error while fetching secrets: %v\n", err)
@@ -95,19 +97,19 @@ func TestNewGormSecretStorage(t *testing.T) {
 
 	t.Run("UpdateSecret", func(t *testing.T) {
 		value := "mysql://localhost:3306/database"
-		_, err := service.Create(application.ID, "DATABASE_CONNECTION_2", value)
+		_, err := service.Create(ctx, application.ID, "DATABASE_CONNECTION_2", value)
 		if err != nil {
 			t.Fatalf("Error while inserting new secret: %v", err)
 		}
 
 		newValue := "postgres://localhost:5432/database"
-		_, err = service.Update(application.ID, "DATABASE_CONNECTION_2", "DATABASE_CONNECTION_2", newValue)
+		_, err = service.Update(ctx, application.ID, "DATABASE_CONNECTION_2", "DATABASE_CONNECTION_2", newValue)
 
 		if err != nil {
 			t.Fatalf("Error while updating secret: %v", err)
 		}
 
-		secretDecrypted, err := service.GetOne(application.ID, "DATABASE_CONNECTION_2")
+		secretDecrypted, err := service.GetOne(ctx, application.ID, "DATABASE_CONNECTION_2")
 
 		if err != nil {
 			t.Fatalf("Secret with name `DATABASE_CONNECTION_2` does not exist: %v", err)

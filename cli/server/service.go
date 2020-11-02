@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"github.com/BrosSquad/vaulguard/services"
 	"github.com/BrosSquad/vaulguard/services/application"
 	"github.com/BrosSquad/vaulguard/services/secret"
@@ -31,13 +30,13 @@ func createApplicationService(db *gorm.DB, client *mongo.Collection, storeInSql 
 	return application.NewMongoService(client)
 }
 
-func createTokenService(ctx context.Context, db *gorm.DB, client *mongo.Collection, storeInSql bool) token.Service {
+func createTokenService(db *gorm.DB, client *mongo.Collection, storeInSql bool) token.Service {
 	var storage token.Storage
 
 	if storeInSql {
 		storage = token.NewSqlStorage(db)
 	} else {
-		storage = token.NewMongoStorage(ctx, client)
+		storage = token.NewMongoStorage(client)
 	}
 
 	return token.NewService(storage)

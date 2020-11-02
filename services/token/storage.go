@@ -11,8 +11,8 @@ import (
 )
 
 type Storage interface {
-	Get(interface{}) (models.TokenDto, error)
-	Create(token *models.TokenDto) (*models.TokenDto, error)
+	Get(context.Context, interface{}) (models.TokenDto, error)
+	Create(context.Context, *models.TokenDto) (*models.TokenDto, error)
 }
 
 func NewSqlStorage(db *gorm.DB) Storage {
@@ -22,9 +22,8 @@ func NewSqlStorage(db *gorm.DB) Storage {
 	}
 }
 
-func NewMongoStorage(ctx context.Context, client *mongo.Collection) Storage {
+func NewMongoStorage(client *mongo.Collection) Storage {
 	return mongoStorage{
-		ctx:    ctx,
 		client: client,
 		cache:  make(map[primitive.ObjectID]models.Token),
 	}
@@ -35,11 +34,11 @@ type sqlStorage struct {
 	cache map[uint]models.Token
 }
 
-func (s sqlStorage) Get(idOrObjectId interface{}) (models.TokenDto, error) {
+func (s sqlStorage) Get(ctx context.Context, idOrObjectId interface{}) (models.TokenDto, error) {
 	id := uint(idOrObjectId.(uint64))
 	var token models.Token
 	if _, ok := s.cache[id]; !ok {
-		tx := s.db.Joins("Application").First(&token, id)
+		tx := s.db.WithContext(ctx).Joins("Application").First(&token, id)
 		if err := tx.Error; err != nil {
 			return models.TokenDto{}, err
 		}
@@ -62,14 +61,14 @@ func (s sqlStorage) Get(idOrObjectId interface{}) (models.TokenDto, error) {
 	}, nil
 }
 
-func (s sqlStorage) Create(tokenDto *models.TokenDto) (*models.TokenDto, error) {
+func (s sqlStorage) Create(ctx context.Context, tokenDto *models.TokenDto) (*models.TokenDto, error) {
 	token := models.Token{
 		Value:         tokenDto.Value,
 		ApplicationId: tokenDto.ApplicationId.(uint),
 		CreatedAt:     tokenDto.CreatedAt,
 		UpdatedAt:     tokenDto.UpdatedAt,
 	}
-	if err := s.db.Create(&token).Error; err != nil {
+	if err := s.db.WithContext(ctx).Create(&token).Error; err != nil {
 		return nil, err
 	}
 
@@ -84,7 +83,7 @@ type mongoStorage struct {
 	cache  map[primitive.ObjectID]models.Token
 }
 
-func (m mongoStorage) Get(idOrObjectID interface{}) (models.TokenDto, error) {
+func (m mongoStorage) Get(ctx context.Context, idOrObjectID interface{}) (models.TokenDto, error) {
 	objectID := idOrObjectID.(primitive.ObjectID)
 	filter := bson.A{
 		bson.D{
@@ -118,16 +117,16 @@ func (m mongoStorage) Get(idOrObjectID interface{}) (models.TokenDto, error) {
 		},
 	}
 
-	cursor, err := m.client.Aggregate(m.ctx, filter)
+	cursor, err := m.client.Aggregate(ctx, filter)
 
 	if err != nil {
 		return models.TokenDto{}, err
 	}
 
-	defer cursor.Close(m.ctx)
+	defer cursor.Close(ctx)
 	token := models.TokenDto{}
 
-	for cursor.Next(m.ctx) {
+	for cursor.Next(ctx) {
 		err := cursor.Decode(&token)
 		if err != nil {
 			return models.TokenDto{}, err
@@ -137,8 +136,8 @@ func (m mongoStorage) Get(idOrObjectID interface{}) (models.TokenDto, error) {
 	return token, nil
 }
 
-func (m mongoStorage) Create(token *models.TokenDto) (*models.TokenDto, error) {
-	inserted, err := m.client.InsertOne(m.ctx, bson.M{
+func (m mongoStorage) Create(ctx context.Context, token *models.TokenDto) (*models.TokenDto, error) {
+	inserted, err := m.client.InsertOne(ctx, bson.M{
 		"Value":         token.Value,
 		"ApplicationId": token.ApplicationId.(primitive.ObjectID),
 		"CreatedAt":     token.CreatedAt,

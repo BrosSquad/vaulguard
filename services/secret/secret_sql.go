@@ -1,6 +1,7 @@
 package secret
 
 import (
+	"context"
 	"log"
 	"sync"
 
@@ -38,7 +39,7 @@ func NewGormSecretStorage(config GormSecretConfig) Service {
 	}
 }
 
-func (g gormSecretService) Paginate(applicationID interface{}, page, perPage int) (map[string]string, error) {
+func (g gormSecretService) Paginate(ctx context.Context, applicationID interface{}, page, perPage int) (map[string]string, error) {
 	var secrets []models.Secret
 
 	if page < 0 {
@@ -46,6 +47,7 @@ func (g gormSecretService) Paginate(applicationID interface{}, page, perPage int
 	}
 
 	err := g.db.
+		WithContext(ctx).
 		Where("application_id = ?", applicationID).
 		Limit(perPage).
 		Offset((page - 1) * perPage).
@@ -69,14 +71,14 @@ func (g gormSecretService) Paginate(applicationID interface{}, page, perPage int
 	return secretsDto, nil
 }
 
-func (g gormSecretService) GetOne(applicationID interface{}, key string) (Secret, error) {
+func (g gormSecretService) GetOne(ctx context.Context, applicationID interface{}, key string) (Secret, error) {
 	secret := models.Secret{}
 	value, ok := g.cache[applicationID.(uint)][key]
 
 	if ok {
 		secret = value
 	} else {
-		err := g.db.Where("key = ? AND application_id = ?", key, applicationID).First(&secret).Error
+		err := g.db.WithContext(ctx).Where("key = ? AND application_id = ?", key, applicationID).First(&secret).Error
 		if err != nil {
 			return Secret{}, err
 		}
@@ -113,12 +115,11 @@ func updateSecretCache(g *baseService, secrets []models.Secret, applicationID in
 			g.mutex.Lock()
 			secretsMap[s.Key] = s
 			g.mutex.Unlock()
-
 		}
 	}
 }
 
-func (g gormSecretService) Get(applicationID interface{}, keys []string) (_ map[string]string, err error) {
+func (g gormSecretService) Get(ctx context.Context, applicationID interface{}, keys []string) (_ map[string]string, err error) {
 	var keysToFetch []string
 	keysLen := len(keys)
 	secrets := make([]models.Secret, 0, keysLen)
@@ -134,7 +135,7 @@ func (g gormSecretService) Get(applicationID interface{}, keys []string) (_ map[
 	if len(keysToFetch) > 0 {
 		log.Printf("Keys to fetch: %d\n", len(keysToFetch))
 		var secretsFetch []models.Secret
-		result := g.db.Where("application_id = ? AND key IN ?", applicationID, keysToFetch).Find(&secretsFetch)
+		result := g.db.WithContext(ctx).Where("application_id = ? AND key IN ?", applicationID, keysToFetch).Find(&secretsFetch)
 
 		if err = result.Error; err != nil {
 			return nil, err
@@ -160,11 +161,17 @@ func (g gormSecretService) Get(applicationID interface{}, keys []string) (_ map[
 	return dtoSecrets, err
 }
 
-func (g gormSecretService) Create(applicationID interface{}, key, value string) (models.Secret, error) {
+func (g gormSecretService) Create(ctx context.Context, applicationID interface{}, key, value string) (models.Secret, error) {
 	var count int64
 	var secret models.Secret
 
-	if err := g.db.Model(&secret).Where("key = ? AND application_id = ?", key, applicationID).Count(&count).Error; err != nil {
+	err := g.db.
+		WithContext(ctx).
+		Model(&secret).
+		Where("key = ? AND application_id = ?", key, applicationID).
+		Count(&count).Error
+
+	if err != nil {
 		return secret, err
 	}
 
@@ -189,24 +196,36 @@ func (g gormSecretService) Create(applicationID interface{}, key, value string) 
 	return secret, nil
 }
 
-func (g gormSecretService) Update(applicationID interface{}, key, newKey, value string) (models.Secret, error) {
+func (g gormSecretService) Update(ctx context.Context, applicationID interface{}, key, newKey, value string) (models.Secret, error) {
 	secret := models.Secret{}
 	appId := applicationID.(uint)
 
-	if err := g.db.Where("key = ? AND application_id = ?", key, appId).Find(&secret).Error; err != nil {
+	db := g.db.WithContext(ctx)
+
+	db.Begin()
+
+	err := db.
+		WithContext(ctx).
+		Where("key = ? AND application_id = ?", key, appId).
+		Find(&secret).Error
+
+	if err != nil {
+		db.Rollback()
 		return secret, err
 	}
 
 	encrypted, err := g.encryptionService.EncryptString(value)
 
 	if err != nil {
+		db.Rollback()
 		return models.Secret{}, err
 	}
 
 	secret.Value = encrypted
 	secret.Key = newKey
 
-	if err := g.db.Save(&secret).Error; err != nil {
+	if err := db.Save(&secret).Error; err != nil {
+		db.Rollback()
 		return models.Secret{}, err
 	}
 
@@ -220,10 +239,14 @@ func (g gormSecretService) Update(applicationID interface{}, key, newKey, value 
 		}
 	}()
 
+	if err := db.Commit().Error; err != nil {
+		return models.Secret{}, err
+	}
+
 	return secret, nil
 }
 
-func (g gormSecretService) Delete(applicationID interface{}, key string) error {
+func (g gormSecretService) Delete(ctx context.Context, applicationID interface{}, key string) error {
 	secret := models.Secret{}
 	appId := applicationID.(uint)
 
@@ -233,14 +256,14 @@ func (g gormSecretService) Delete(applicationID interface{}, key string) error {
 		g.mutex.Unlock()
 	}
 
-	if err := g.db.Where("key = ? AND application_id = ?", key, appId).Delete(&secret).Error; err != nil {
+	if err := g.db.WithContext(ctx).Where("key = ? AND application_id = ?", key, appId).Delete(&secret).Error; err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (g gormSecretService) InvalidateCache(applicationID interface{}) error {
+func (g gormSecretService) InvalidateCache(_ context.Context, applicationID interface{}) error {
 	g.mutex.Lock()
 	defer g.mutex.Unlock()
 	appId := applicationID.(uint)

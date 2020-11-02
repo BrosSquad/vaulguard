@@ -155,7 +155,7 @@ func main() {
 		ApplicationCollection: applicationCollection,
 		SecretService:         createSecretService(sqlDb, secretCollection, encryptionService, cfg.UseSql),
 		ApplicationService:    createApplicationService(sqlDb, applicationCollection, cfg.UseSql),
-		TokenService:          createTokenService(ctx, sqlDb, tokenCollection, cfg.UseSql),
+		TokenService:          createTokenService(sqlDb, tokenCollection, cfg.UseSql),
 		Logger:                logger,
 		Validator:             v,
 	}

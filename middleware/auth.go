@@ -39,7 +39,7 @@ func TokenAuth(config TokenAuthConfig) fiber.Handler {
 			if err != nil {
 				return err
 			}
-			app, ok := service.Verify(t)
+			app, ok := service.Verify(ctx.Context(), t)
 			if ok {
 				ctx.Locals("application", app)
 				return ctx.Next()

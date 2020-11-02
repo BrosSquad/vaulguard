@@ -11,9 +11,7 @@ type sqlService struct {
 	db *gorm.DB
 }
 
-const size = 50
-
-func (s sqlService) List(ctx context.Context, cb func([]models.ApplicationDto) error) error {
+func (s sqlService) List(ctx context.Context, size int, cb func([]models.ApplicationDto) error) error {
 	results := make([]models.Application, 0, size)
 	appsDto := make([]models.ApplicationDto, 0, size)
 	err := s.db.WithContext(ctx).FindInBatches(&results, size, func(tx *gorm.DB, batch int) error {

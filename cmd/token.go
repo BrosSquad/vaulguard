@@ -23,7 +23,7 @@ func (tc tokenCommand) Execute(cmd *cobra.Command, args []string) error {
 		//log.Fatal(err)
 	}
 
-	tokenStr := tc.tokenService.Generate(app.ID)
+	tokenStr := tc.tokenService.Generate(tc.ctx, app.ID)
 
 	if tokenStr == "" {
 		log.Fatal("Error while generating Auth Token")
@@ -41,4 +41,3 @@ func NewTokenCommand(ctx context.Context, applicationService application.Service
 		tokenService:       tokenService,
 	}
 }
-
