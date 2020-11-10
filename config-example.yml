@@ -11,8 +11,8 @@ databases:
   # Storage engines - SQL and NoSQL(Mongo)
   # There is not partial data storage support
   sql:
-    provider: sqlite # supported drivers - sqlite, postgres, mysql
-    dsn: ./vauguard.db
+    provider: postgres # supported drivers - sqlite, postgres, mysql
+    dsn: 'host=postgres user=postgres password=postgres dbname=vaulguard port=5432 sslmode=disable TimeZone=UTC'
   mongo:
     uri: mongodb://mongo:27017
   redis:
