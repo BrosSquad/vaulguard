@@ -305,5 +305,9 @@ func New(r io.Reader) (*Config, error) {
 	if err := config.Validate(); err != nil {
 		return nil, err
 	}
+
+	if err := config.Validate(); err != nil {
+		return nil, err
+	}
 	return &config, nil
 }

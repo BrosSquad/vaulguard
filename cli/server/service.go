@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/rand"
-
 	"github.com/BrosSquad/vaulguard/config"
 	"github.com/BrosSquad/vaulguard/services"
 	"github.com/BrosSquad/vaulguard/services/application"
