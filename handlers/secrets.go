@@ -24,18 +24,18 @@ func RegisterSecretHandlers(validate *validator.Validate, service secret.Service
 	r.Delete("/invalidate", secretHandlers.invalidateCache)
 }
 
-func (s secretHandlers) getSecrets(ctx *fiber.Ctx) error {
-	app := ctx.Locals("application").(models.ApplicationDto)
-	page := ctx.Locals("page").(int)
-	perPage := ctx.Locals("perPage").(int)
+func (s secretHandlers) getSecrets(c *fiber.Ctx) error {
+	app := c.Locals("application").(models.ApplicationDto)
+	page := c.Locals("page").(int)
+	perPage := c.Locals("perPage").(int)
 
-	secrets, err := s.service.Paginate(app.ID, page, perPage)
+	secrets, err := s.service.Paginate(c.Context(), app.ID, page, perPage)
 
 	if err != nil {
 		return err
 	}
 
-	return ctx.JSON(secrets)
+	return c.JSON(secrets)
 }
 
 func (s secretHandlers) getManySecrets(c *fiber.Ctx) error {
@@ -48,7 +48,7 @@ func (s secretHandlers) getManySecrets(c *fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 
-	secrets, err := s.service.Get(app.ID, keysStruct.keys)
+	secrets, err := s.service.Get(c.Context(), app.ID, keysStruct.keys)
 	if err != nil {
 		return err
 	}
@@ -72,7 +72,7 @@ func (s secretHandlers) createSecret(c *fiber.Ctx) error {
 		return err
 	}
 
-	data, err := s.service.Create(app.ID, p.Key, p.Value)
+	data, err := s.service.Create(c.Context(), app.ID, p.Key, p.Value)
 
 	if err != nil {
 		return err
@@ -89,11 +89,11 @@ func (s secretHandlers) createSecret(c *fiber.Ctx) error {
 	})
 }
 
-func (s secretHandlers) invalidateCache(ctx *fiber.Ctx) error {
-	app := ctx.Locals("application").(models.ApplicationDto)
+func (s secretHandlers) invalidateCache(c *fiber.Ctx) error {
+	app := c.Locals("application").(models.ApplicationDto)
 
-	if err := s.service.InvalidateCache(app.ID); err != nil {
+	if err := s.service.InvalidateCache(c.Context(), app.ID); err != nil {
 		return fiber.ErrInternalServerError
 	}
-	return ctx.SendStatus(fiber.StatusNoContent)
+	return c.SendStatus(fiber.StatusNoContent)
 }
