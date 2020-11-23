@@ -22,7 +22,12 @@ type gormClose struct {
 }
 
 func (g gormClose) Close() error {
-	return db.Close()
+	sqlDB, err := g.db.DB()
+	if err != nil {
+		return err
+	}
+
+	return sqlDB.Close()
 }
 
 func (m mongoClose) Close() error {
@@ -46,9 +51,9 @@ func connectToMongoAndMigrate(ctx context.Context, mongoURI string) (*mongo.Clie
 func connectToRelationalDatabaseAndMigrate(logger *log.Logger, cfg *config.Config) (*gorm.DB, io.Closer, error) {
 	provider, err := db.GetDatabaseProvider(cfg.Databases.SQL.Provider)
 	if err != nil {
+
 		return nil, nil, err
 	}
-
 	conn, err := db.ConnectToDatabaseProvider(db.GormConfig{
 		LogLevel:    log.GetDbLogLevel(cfg.Logging.Level),
 		Logger:      logger,
@@ -60,9 +65,8 @@ func connectToRelationalDatabaseAndMigrate(logger *log.Logger, cfg *config.Confi
 		return nil, nil, err
 	}
 
-	if err := db.SqlMigrate(); err != nil {
+	if err := db.SqlMigrate(conn); err != nil {
 		return nil, nil, err
 	}
-
 	return conn, &gormClose{conn}, nil
 }

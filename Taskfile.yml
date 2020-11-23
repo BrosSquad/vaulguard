@@ -5,7 +5,14 @@ tasks:
       - go run . -config=./config.yml
   build:
     cmds:
-      - CGO_ENABLED=0 go build -v -o bin/vaulguard{{.exeExt}} .
+      - go build -o ./build/vaulguard{{exeExt}} ./cli/server
+  build-prod:
+    env:
+      CGO_ENABLED: 0
+      GOARCH: amd64
+      GOOS:
+    cmds:
+      - go build -ldflags="-s -w" -a -installsuffix cgo -o ./build/app{{exeExt}} ./cli/server
   test:
     cmds:
       - go test ./...
